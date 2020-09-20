@@ -1,0 +1,52 @@
+name:                c-compiler
+version:             0.1.0.0
+github:              "n4mespace/c-compiler"
+license:             BSD3
+author:              "n4mespace"
+maintainer:          "zaxarchuk.d@gmail.com"
+copyright:           "2020 n4mespace"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+synopsis:            Simple compiler from C to masm
+category:            Compiler
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/n4mespace/c-compiler#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  c-compiler-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall 
+    - -fwarn-tabs
+    dependencies:
+    - c-compiler
+
+tests:
+  c-compiler-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall 
+    - -fwarn-tabs
+    dependencies:
+    - c-compiler

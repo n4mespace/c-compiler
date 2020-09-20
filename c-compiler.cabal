@@ -1,0 +1,64 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: e5127bd1741523acffc2ac339a168ea2a4abd6971e1936a1fe3769a934b61263
+
+name:           c-compiler
+version:        0.1.0.0
+synopsis:       Simple compiler from C to masm
+description:    Please see the README on GitHub at <https://github.com/n4mespace/c-compiler#readme>
+category:       Compiler
+homepage:       https://github.com/n4mespace/c-compiler#readme
+bug-reports:    https://github.com/n4mespace/c-compiler/issues
+author:         n4mespace
+maintainer:     zaxarchuk.d@gmail.com
+copyright:      2020 n4mespace
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/n4mespace/c-compiler
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_c_compiler
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  default-language: Haskell2010
+
+executable c-compiler-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_c_compiler
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
+  build-depends:
+      base >=4.7 && <5
+    , c-compiler
+  default-language: Haskell2010
+
+test-suite c-compiler-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_c_compiler
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
+  build-depends:
+      base >=4.7 && <5
+    , c-compiler
+  default-language: Haskell2010
