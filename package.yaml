@@ -26,7 +26,7 @@ library:
   source-dirs: src
 
 executables:
-  c-compiler-exe:
+  c-compiler:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -37,9 +37,12 @@ executables:
     - -fwarn-tabs
     dependencies:
     - c-compiler
+    - bytestring
+    - attoparsec
+    - utf8-string
 
 tests:
-  c-compiler-test:
+  c-compiler-tests:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -50,3 +53,5 @@ tests:
     - -fwarn-tabs
     dependencies:
     - c-compiler
+    - bytestring
+    - utf8-string
