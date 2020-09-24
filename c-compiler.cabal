@@ -45,6 +45,8 @@ library
     , parsec
     , pretty-simple
     , text
+    , containers
+    , mtl
   default-language: Haskell2010
 
 executable c-compiler
@@ -61,6 +63,8 @@ executable c-compiler
     , pretty-simple
     , text
     , c-compiler
+    , containers
+    , mtl
   default-language: Haskell2010
 
 test-suite c-compiler-tests
@@ -78,4 +82,6 @@ test-suite c-compiler-tests
     , pretty-simple
     , text
     , c-compiler
+    , containers
+    , mtl
   default-language: Haskell2010

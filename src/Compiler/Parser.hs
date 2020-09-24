@@ -35,7 +35,7 @@ langDefC = Tok.LanguageDef
 reservedCNames :: [String]
 reservedCNames =
   [ "int", "char", "while", "for", "&&", "||", "!",
-    "return", "if", "else", "True", "False"]
+    "return", "if", "else", "True", "False", "void"]
 
 reservedCOpNames :: [String]
 reservedCOpNames =
@@ -108,6 +108,7 @@ statement'
   <|> try ifStmt
   <|> try whileStmt
   <|> try assignStmt
+  <|> try simpleExpr
 
 ifStmt :: Parser Stmt
 ifStmt = do
@@ -118,12 +119,16 @@ ifStmt = do
   stmt2 <- braces statement
   return $ If cond stmt1 stmt2
 
+simpleExpr :: Parser Stmt
+simpleExpr = ((Expr . ArExpr <$> aExpression)
+          <|> (Expr . BoolExpr <$> bExpression)
+        ) <*  semi
+
 returnStmt :: Parser Stmt
 returnStmt = do
   reserved "return"
-  ((Return . ArExpr <$> aExpression)
-    <|> (Return . BoolExpr <$> bExpression)
-    <|> return (Return Null)) <* semi
+  expr <- simpleExpr <|> (return ReturnNull <* semi)
+  return $ Return expr
 
 whileStmt :: Parser Stmt
 whileStmt = do
@@ -134,21 +139,26 @@ whileStmt = do
 
 assignStmt :: Parser Stmt
 assignStmt = do
-  typeOfVar <- symbol "int" <|> symbol "char"
+  typeOfVar <- typeOfExpr
   varName <- identifier
   reservedOp "="
   expr <- aExpression <* semi
   return $ Assign typeOfVar varName expr
 
+typeOfExpr :: Parser Type
+typeOfExpr = (symbol "int" >> return INT)
+         <|> (symbol "char" >> return CHAR)
+         <|> (symbol "void" >> return VOID)
+
 funcParam :: Parser FParams
 funcParam = do
-  typeOfP <- symbol "int" <|> symbol "char"
+  typeOfP <- typeOfExpr
   name <- identifier
   return $ Param typeOfP name
 
 funcStmt :: Parser Stmt
 funcStmt = do
-  typeOfF <- symbol "int" <|> symbol "char"
+  typeOfF <- typeOfExpr
   name <- identifier
   params <- parens (commaSep funcParam) <|> return []
   body <- braces statement
@@ -198,3 +208,11 @@ rExpression = do
 relation :: ParsecT String () Identity RBinOp
 relation =  (reservedOp ">" >> return Greater)
         <|> (reservedOp "<" >> return Less)
+
+parseFile :: String -> IO Stmt
+parseFile filePath = do
+  withFile filePath ReadMode (\handle -> do
+    program <- hGetContents handle
+    case parse whileParser filePath program of
+      Left e  -> print e >> fail "parse error"
+      Right r -> return r)

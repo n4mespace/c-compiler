@@ -2,6 +2,8 @@ module Compiler.Syntax.Control
   ( Expr (..)
   , Stmt (..)
   , FParams (..)
+  , Type (..)
+  , Name
   )
 where
 
@@ -10,8 +12,10 @@ import Compiler.Syntax.Boolean
 import Compiler.Syntax.Arithmetic
 
 
-type Type = String
 type Name = String
+
+data Type = INT | CHAR | VOID
+  deriving (Show)
 
 data FParams = Param Type Name
   deriving (Show)
@@ -19,7 +23,6 @@ data FParams = Param Type Name
 data Expr
   = ArExpr AExpr
   | BoolExpr BExpr
-  | Null
   deriving (Show)
 
 data Stmt
@@ -28,5 +31,7 @@ data Stmt
   | If BExpr Stmt Stmt
   | While BExpr Stmt
   | Func Type Name [FParams] Stmt
-  | Return Expr
+  | Expr Expr
+  | Return Stmt
+  | ReturnNull
   deriving (Show)
