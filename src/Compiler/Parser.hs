@@ -142,7 +142,7 @@ assignStmt = do
   typeOfVar <- typeOfExpr
   varName <- identifier
   reservedOp "="
-  expr <- aExpression <* semi
+  expr <- simpleExpr
   return $ Assign typeOfVar varName expr
 
 typeOfExpr :: Parser Type

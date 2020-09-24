@@ -2,6 +2,7 @@
 
 module Compiler.Grammar
   ( checkGrammar
+  , Err (..)
   )
 where
 
@@ -26,10 +27,9 @@ data Err = TypeMismatch Type Type
 
 checkGrammar :: Stmt -> IO (Either Err Stmt)
 checkGrammar = return . (\case
-    func@(Func fType fName fParams body) ->
-      Right func
-    assign@(Assign aType aName expt) ->
-      Right assign
-    stmt ->
-      Right stmt)
-    
+  func@(Func fType fName fParams body) ->
+    Right func
+  assign@(Assign aType aName expt) ->
+    Right assign
+  stmt ->
+    Right stmt)

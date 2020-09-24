@@ -27,7 +27,7 @@ data Expr
 
 data Stmt
   = Block [Stmt]
-  | Assign Type Name AExpr
+  | Assign Type Name Stmt
   | If BExpr Stmt Stmt
   | While BExpr Stmt
   | Func Type Name [FParams] Stmt

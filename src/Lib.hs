@@ -4,12 +4,10 @@ module Lib
   )
 where
 
+import           Compiler.Generator.MASM  (generateMASM)
 import           Compiler.Grammar        (checkGrammar)
 import           Compiler.Parser
-import           Compiler.Syntax.Control (Stmt)
-import           Control.Monad           (void)
-import           System.IO
-import           Text.Parsec.Prim        (parse)
+
 import           Text.Pretty.Simple      (pPrint)
 
 main :: IO ()
@@ -20,3 +18,6 @@ main = do
     Right r -> do
       putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pPrint r
+  masm <- generateMASM program
+  putStrLn "\n{-# GENERATED .ASM #-}"
+  putStrLn masm

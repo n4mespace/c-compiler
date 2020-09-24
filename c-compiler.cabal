@@ -30,6 +30,7 @@ source-repository head
 library
   exposed-modules:
       Compiler.Parser
+      Compiler.Generator.MASM
       Compiler.Grammar
       Compiler.Syntax.Arithmetic
       Compiler.Syntax.Boolean
