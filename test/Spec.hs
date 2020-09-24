@@ -1,11 +1,8 @@
 module Main where
 
-import qualified Data.ByteString.Lazy as BL
-import           System.IO
+import           Compiler.Syntax.Control (Stmt)
+import           Lib                     (parseFile)
 
-main :: IO ()
-main = do
-  withFile "test/lab1.c" ReadMode (\handle -> do
-    contents <- BL.hGetContents handle
-    BL.putStr contents)
+main :: IO Stmt
+main = parseFile "test/lab1.c"
 

@@ -1,42 +1,194 @@
-module Compiler.Parser where
+module Compiler.Parser
 
-import qualified Compiler.Syntax                  as S
-import           Control.Applicative
-import qualified Data.Attoparsec.ByteString.Char8 as BCh
-import qualified Data.Attoparsec.ByteString.Lazy  as BL
-import qualified Data.ByteString                  as BS
-import           Data.ByteString.UTF8             as BSU
-import           Data.Word
+where
 
+import           Compiler.Syntax.Arithmetic
+import           Compiler.Syntax.Boolean
+import           Compiler.Syntax.Control
 
-word8ToChar :: Word8 -> Char
-word8ToChar = toEnum . fromEnum
-
-parseFunction :: BL.Parser S.Function
-parseFunction = do
-  returnType <- BL.string S.int <|> BL.string S.char
-  BCh.skipSpace
-
-  funcName <- BL.takeWhile $ (/= S.openParenthesis) . word8ToChar
-  BCh.skipWhile (== S.openParenthesis)
-  params <- BL.takeWhile $ (/= S.closeParenthesis) . word8ToChar
-
-  BCh.skipWhile (/= S.openBrace)
-  body <- BL.takeWhile $ (/= S.closeBrace) . word8ToChar
-
-  parsedBody <- parseFunctionBody $ BS.tail body
-
-  return $ S.Function returnType funcName params parsedBody
-
-parseFunctionBody :: ByteString -> BL.Parser S.FunctionBody
-parseFunctionBody body = do
-  
-  return $ S.FunctionBody [S.Lit 3]
-
-try :: IO ()
-try = do
-  print $ BL.parseOnly parseFunction (BSU.fromString "int main(2) { return 2; }")
+import           Control.Monad
+import           Data.Functor.Identity                  (Identity)
+import           System.IO
+import           Text.Parsec.Prim                       (ParsecT)
+import           Text.ParserCombinators.Parsec
+import           Text.ParserCombinators.Parsec.Char     (anyChar)
+import           Text.ParserCombinators.Parsec.Expr
+import           Text.ParserCombinators.Parsec.Language
+import qualified Text.ParserCombinators.Parsec.Token    as Tok
 
 
+-- Define C language
+langDefC :: Tok.LanguageDef ()
+langDefC = Tok.LanguageDef
+  { Tok.commentStart    = "/*"
+  , Tok.commentEnd      = "*/}"
+  , Tok.commentLine     = "//"
+  , Tok.nestedComments  = True
+  , Tok.identStart      = letter <|> char '_'
+  , Tok.identLetter     = alphaNum <|> char '_'
+  , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
+  , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
+  , Tok.reservedNames   = reservedCNames
+  , Tok.reservedOpNames = reservedCOpNames
+  , Tok.caseSensitive   = True }
 
+reservedCNames :: [String]
+reservedCNames =
+  [ "int", "char", "while", "for", "&&", "||", "!",
+    "return", "if", "else", "True", "False"]
 
+reservedCOpNames :: [String]
+reservedCOpNames =
+  [ "+", "-", "*", "/", "=", "!=",
+    "<", ">", "&&", "||", "!" ]
+
+lexer :: Tok.GenTokenParser String () Identity
+lexer = Tok.makeTokenParser langDefC
+
+identifier :: ParsecT String () Identity String
+identifier = Tok.identifier lexer -- parses an identifier
+
+reserved :: String -> ParsecT String () Identity ()
+reserved = Tok.reserved lexer -- parses a reserved name
+
+reservedOp :: String -> ParsecT String () Identity ()
+reservedOp = Tok.reservedOp lexer -- parses an operator
+
+parens :: ParsecT String () Identity a -> ParsecT String () Identity a
+parens = Tok.parens lexer -- parses surrounding parenthesis
+
+braces :: ParsecT String () Identity a -> ParsecT String () Identity a
+braces = Tok.braces lexer -- parses surrounding braces
+
+integer :: ParsecT String () Identity Integer
+integer = Tok.integer lexer -- parses an integer
+
+semi :: ParsecT String () Identity String
+semi = Tok.semi lexer -- parses a semicolon
+
+whiteSpace :: ParsecT String () Identity ()
+whiteSpace = Tok.whiteSpace lexer -- parses whitespace
+
+symbol :: String -> ParsecT String () Identity String
+symbol = Tok.symbol lexer -- parses s string
+
+commaSep :: ParsecT String () Identity a -> ParsecT String () Identity [a]
+commaSep = Tok.commaSep lexer -- parses 0 or more separated by comma values
+
+binary :: ParsecT String () Identity String
+binary = do
+  _ <- symbol "0b"
+  numPart <- many1 $ oneOf "01"
+  return $ "0b" ++ numPart
+
+whileParser :: Parser Stmt
+whileParser = whiteSpace >> statement <* eof
+
+statement :: Parser Stmt
+statement =   braces statement
+          <|> parens statement
+          <|> sequenceOfStmt
+
+sequenceOfStmt :: Parser Stmt
+sequenceOfStmt = do
+  list <- many statement'
+  return $ case length list of
+    0 -> error "Empty file"
+    _ -> Block list
+
+statement' :: Parser Stmt
+statement'
+   =  try funcStmt
+  <|> try returnStmt
+  <|> try ifStmt
+  <|> try whileStmt
+  <|> try assignStmt
+
+ifStmt :: Parser Stmt
+ifStmt = do
+  reserved "if"
+  cond <- parens bExpression
+  stmt1 <- braces statement
+  reserved "else"
+  stmt2 <- braces statement
+  return $ If cond stmt1 stmt2
+
+returnStmt :: Parser Stmt
+returnStmt = do
+  reserved "return"
+  ((Return . ArExpr <$> aExpression)
+    <|> (Return . BoolExpr <$> bExpression)
+    <|> return (Return Null)) <* semi
+
+whileStmt :: Parser Stmt
+whileStmt = do
+  reserved "while"
+  cond <- bExpression
+  stmt <- braces statement
+  return $ While cond stmt
+
+assignStmt :: Parser Stmt
+assignStmt = do
+  typeOfVar <- symbol "int" <|> symbol "char"
+  varName <- identifier
+  reservedOp "="
+  expr <- aExpression <* semi
+  return $ Assign typeOfVar varName expr
+
+funcParam :: Parser FParams
+funcParam = do
+  typeOfP <- symbol "int" <|> symbol "char"
+  name <- identifier
+  return $ Param typeOfP name
+
+funcStmt :: Parser Stmt
+funcStmt = do
+  typeOfF <- symbol "int" <|> symbol "char"
+  name <- identifier
+  params <- parens (commaSep funcParam) <|> return []
+  body <- braces statement
+  return $ Func typeOfF name params body
+
+aExpression :: Parser AExpr
+aExpression = buildExpressionParser aOperators aTerm
+
+bExpression :: Parser BExpr
+bExpression = buildExpressionParser bOperators bTerm
+
+aOperators :: [[Operator Char () AExpr]]
+aOperators = [ [Prefix (reservedOp "-"   >> return  Neg              )          ]
+             , [Infix  (reservedOp "*"   >> return (ABinary Multiply)) AssocLeft,
+                Infix  (reservedOp "/"   >> return (ABinary Divide  )) AssocLeft]
+             , [Infix  (reservedOp "+"   >> return (ABinary Add     )) AssocLeft,
+                Infix  (reservedOp "-"   >> return (ABinary Subtract)) AssocLeft] ]
+
+bOperators :: [[Operator Char () BExpr]]
+bOperators = [ [Prefix (reservedOp "!"   >> return  Not             )           ]
+             , [Infix  (reservedOp "&&"  >> return (BBinary And     )) AssocLeft,
+                Infix  (reservedOp "||"  >> return (BBinary Or      )) AssocLeft] ]
+
+singleChar :: Parser Char
+singleChar = between (symbol "\'") (symbol "\'") anyChar
+
+aTerm :: ParsecT String () Identity AExpr
+aTerm =  parens aExpression
+     <|> fmap Var identifier
+     <|> fmap IntConst integer
+     <|> fmap CharConst singleChar
+
+bTerm :: ParsecT String () Identity BExpr
+bTerm =  parens bExpression
+     <|> rExpression
+     <|> (reserved "True"  >> return (BoolConst True ))
+     <|> (reserved "False" >> return (BoolConst False))
+
+rExpression :: ParsecT String () Identity BExpr
+rExpression = do
+  a1 <- aExpression
+  op <- relation
+  a2 <- aExpression
+  return $ RBinary op a1 a2
+
+relation :: ParsecT String () Identity RBinOp
+relation =  (reservedOp ">" >> return Greater)
+        <|> (reservedOp "<" >> return Less)
