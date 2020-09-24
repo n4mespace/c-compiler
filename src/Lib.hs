@@ -16,8 +16,9 @@ main = do
   case program of
     Left e -> print e >> fail "parse error"
     Right r -> do
-      putStrLn "\n{-# GENERATED AST-TOKENS #-}"
+      putStrLn "{-# GENERATED AST-TOKENS #-}"
       pPrint r
-  masm <- generateMASM program
+  asm <- generateMASM program
   putStrLn "\n{-# GENERATED .ASM #-}"
-  putStrLn masm
+  putStrLn asm
+  writeFile "test/chank.asm" asm

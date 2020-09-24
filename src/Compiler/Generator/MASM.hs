@@ -21,11 +21,11 @@ class Emittable e where
 
 generateMASM :: Either Err Stmt -> IO String
 generateMASM (Left e) = return "cannot generate .asm"
-generateMASM (Right p) = return $
-     imports
-  <> constSection p
-  <> dataSection p
-  <> codeSection p
+generateMASM (Right p) = return $ codeSection p
+  --    imports
+  -- <> constSection p
+  -- <> dataSection p
+  -- <> codeSection p
 
 
 instance Emittable Stmt where
@@ -46,10 +46,10 @@ instance Emittable Stmt where
   emitConst _                          = ""
 
   emitCode (Block stmts) = foldl1 (++) $ emitCode <$> stmts
-  emitCode (Func t name params stmts) =
-       name <> " proc\n"
-    <> (emitLn . emitCode $ stmts)
-    <> name <> " endp\n\n"
+  emitCode (Func t name params stmts) = emitLn . emitCode $ stmts
+    --    name <> " proc\n"
+    -- <> (emitLn . emitCode $ stmts)
+    -- <> name <> " endp\n\n"
   emitCode (Assign t name stmt) = ""
   emitCode (Return (Expr (ArExpr (IntConst i))))  = "mov eax, " <> show i
   emitCode (Return (Expr (ArExpr (CharConst i)))) = "mov eax, " <> show i
@@ -161,6 +161,7 @@ constSection program = case emittedProg of
 codeSection :: Stmt -> String
 codeSection program = case emittedProg of
   [] -> ""
-  _  -> "section .code\n" <> emittedProg
+  -- _  -> "section .code\n" <> emittedProg
+  _ -> emittedProg <> "\tmov b, eax"
   where
     emittedProg = emitCode program

@@ -1,8 +1,8 @@
 module Main where
 
 import           Compiler.Syntax.Control (Stmt)
-import           Lib                     (parseFile)
+import           Lib                     (main)
 
-main :: IO Stmt
-main = parseFile "test/lab1.c"
+main :: IO ()
+main = Lib.main
 
