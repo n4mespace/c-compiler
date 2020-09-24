@@ -75,11 +75,16 @@ symbol = Tok.symbol lexer -- parses s string
 commaSep :: ParsecT String () Identity a -> ParsecT String () Identity [a]
 commaSep = Tok.commaSep lexer -- parses 0 or more separated by comma values
 
-binary :: ParsecT String () Identity String
-binary = do
-  _ <- symbol "0b"
+-- "0b1011" -> 11
+binaryInteger :: ParsecT String () Identity Integer
+binaryInteger = do
+  symbol "0b"
   numPart <- many1 $ oneOf "01"
-  return $ "0b" ++ numPart
+  return $ binToDec (read numPart :: Integer)
+    where
+      binToDec :: Integral a => a -> a
+      binToDec 0 = 0
+      binToDec i = 2 * binToDec (div i 10) + mod i 10
 
 whileParser :: Parser Stmt
 whileParser = whiteSpace >> statement <* eof
@@ -156,16 +161,16 @@ bExpression :: Parser BExpr
 bExpression = buildExpressionParser bOperators bTerm
 
 aOperators :: [[Operator Char () AExpr]]
-aOperators = [ [Prefix (reservedOp "-"   >> return  Neg              )          ]
-             , [Infix  (reservedOp "*"   >> return (ABinary Multiply)) AssocLeft,
-                Infix  (reservedOp "/"   >> return (ABinary Divide  )) AssocLeft]
-             , [Infix  (reservedOp "+"   >> return (ABinary Add     )) AssocLeft,
-                Infix  (reservedOp "-"   >> return (ABinary Subtract)) AssocLeft] ]
+aOperators = [ [Prefix (reservedOp "-" >> return  Neg              )          ]
+             , [Infix  (reservedOp "*" >> return (ABinary Multiply)) AssocLeft,
+                Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft]
+             , [Infix  (reservedOp "+" >> return (ABinary Add     )) AssocLeft,
+                Infix  (reservedOp "-" >> return (ABinary Subtract)) AssocLeft] ]
 
 bOperators :: [[Operator Char () BExpr]]
-bOperators = [ [Prefix (reservedOp "!"   >> return  Not             )           ]
-             , [Infix  (reservedOp "&&"  >> return (BBinary And     )) AssocLeft,
-                Infix  (reservedOp "||"  >> return (BBinary Or      )) AssocLeft] ]
+bOperators = [ [Prefix (reservedOp "!"  >> return  Not        )           ]
+             , [Infix  (reservedOp "&&" >> return (BBinary And)) AssocLeft,
+                Infix  (reservedOp "||" >> return (BBinary Or )) AssocLeft] ]
 
 singleChar :: Parser Char
 singleChar = between (symbol "\'") (symbol "\'") anyChar
@@ -173,6 +178,7 @@ singleChar = between (symbol "\'") (symbol "\'") anyChar
 aTerm :: ParsecT String () Identity AExpr
 aTerm =  parens aExpression
      <|> fmap Var identifier
+     <|> (lookAhead (symbol "0b") >> fmap IntConst binaryInteger)
      <|> fmap IntConst integer
      <|> fmap CharConst singleChar
 

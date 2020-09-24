@@ -10,6 +10,6 @@ int mainInt() {
 }
 
 int mainExpr() {
-    int v = 2;
+    int v = 0b101;
     return v + 3;
 }
