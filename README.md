@@ -16,9 +16,9 @@
 ## and run your exe in /dist/build
 
 ## To test generated masm32:
-## - create file lab1.txt with C code
-## - execute program and get  
-## - fill this cpp template
+- create file lab1.txt with C code
+- execute program and get  
+- fill this cpp template
 
 ```c++
 #include <iostream>
