@@ -10,9 +10,9 @@ import           Compiler.Parser
 
 import           Text.Pretty.Simple      (pPrint)
 
-main :: IO ()
-main = do
-  program <- parseFile "test/lab1.c" >>= checkGrammar
+main :: FilePath -> FilePath -> IO ()
+main filePath generateTo = do
+  program <- parseFile filePath >>= checkGrammar
   case program of
     Left e -> print e >> fail "parse error"
     Right r -> do
@@ -21,4 +21,4 @@ main = do
   asm <- generateMASM program
   putStrLn "\n{-# GENERATED .ASM #-}"
   putStrLn asm
-  writeFile "test/chank.asm" asm
+  writeFile generateTo asm
