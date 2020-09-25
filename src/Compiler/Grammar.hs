@@ -53,10 +53,10 @@ checker = \case
         _ -> Left BadReturn
     where
       findReturn :: Stmt -> [Stmt]
-      findReturn (Block (s:[])) = findReturn s
+      findReturn (Block [s]) = findReturn s
       findReturn (Block (s:ss)) = merge (findReturn s) (findReturn $ Block ss)
       findReturn (Return stmt) = [stmt]
-      findReturn (ReturnNull) = [ReturnNull]
+      findReturn ReturnNull = [ReturnNull]
       findReturn _ = []
 
       returnExprs :: [Stmt]
@@ -65,7 +65,7 @@ checker = \case
       parseReturn :: Stmt -> Either Err Type
       parseReturn (Expr (ArExpr (CharConst _))) = Right CHAR
       parseReturn (Expr (ArExpr (IntConst _))) = Right INT
-      parseReturn (ReturnNull) = Right VOID
+      parseReturn ReturnNull = Right VOID
       parseReturn _ = Left BadReturn
 
       l :: Int
@@ -77,9 +77,14 @@ checker = \case
         _ -> return VOID
   
   Block [] -> Left BadReturn
-  Block (s:[]) -> checker s
-  Block (s:ss) -> checker $ Block ss
-
+  Block [s] -> case checker s of
+    Left e -> Left e
+    Right r -> Right s
+  Block (s:ss) -> case checker s of
+    Left e -> Left e
+    Right r -> case checker (Block ss) of
+      Right rs -> Right $ Block $ s:ss
+      Left e -> Left e
   assign@(Assign aType aName expr) ->
     Right assign
   stmt ->
