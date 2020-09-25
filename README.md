@@ -2,17 +2,18 @@
 
 ## To build with stack
 
+``` bash
 >> stack build
-
 >> stack exec c-compiler
+```
 
 ## To build with cabal
 
+``` bash
 >> cabal install
-
 >> cabal build
-
-and run your exe in /dist/build
+```
+## and run your exe in /dist/build
 
 ## To test generated masm32:
 ## - create file lab1.txt with C code
