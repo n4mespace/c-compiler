@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e5127bd1741523acffc2ac339a168ea2a4abd6971e1936a1fe3769a934b61263
+-- hash: a2e4352abe943bb700a7c208275933a89124f0d319fb184c0aa06e6a1feb905b
 
 name:           c-compiler
 version:        0.1.0.0
@@ -29,6 +29,12 @@ source-repository head
 
 library
   exposed-modules:
+      Compiler.Parser
+      Compiler.Generator.MASM
+      Compiler.Grammar
+      Compiler.Syntax.Arithmetic
+      Compiler.Syntax.Boolean
+      Compiler.Syntax.Control
       Lib
   other-modules:
       Paths_c_compiler
@@ -36,9 +42,15 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , parsec
+    , pretty-simple
+    , text
+    , containers
+    , mtl
   default-language: Haskell2010
 
-executable c-compiler-exe
+executable c-compiler
   main-is: Main.hs
   other-modules:
       Paths_c_compiler
@@ -47,10 +59,16 @@ executable c-compiler-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , parsec
+    , pretty-simple
+    , text
     , c-compiler
+    , containers
+    , mtl
   default-language: Haskell2010
 
-test-suite c-compiler-test
+test-suite c-compiler-tests
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
@@ -60,5 +78,11 @@ test-suite c-compiler-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , parsec
+    , pretty-simple
+    , text
     , c-compiler
+    , containers
+    , mtl
   default-language: Haskell2010
