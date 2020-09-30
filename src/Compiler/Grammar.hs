@@ -27,6 +27,7 @@ import           Data.Monoid
 data Err
   = UnExpectedType Type
   | BadReturn
+  | BadExpression String
   deriving Show
 
 checkGrammar :: Stmt -> IO (Either Err Stmt)
