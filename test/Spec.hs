@@ -1,6 +1,5 @@
 module Main where
 
-import           Compiler.Syntax.Control (Stmt)
 import qualified Lib
 
 
