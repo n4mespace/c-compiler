@@ -7,6 +7,7 @@ import           Compiler.Syntax.Boolean
 import           Compiler.Syntax.Control
 
 import           Control.Monad
+import           Data.Functor                           ((<$))
 import           Data.Functor.Identity                  (Identity)
 import           System.IO
 import           Text.Parsec.Prim                       (ParsecT)
@@ -40,7 +41,7 @@ reservedCNames =
 reservedCOpNames :: [String]
 reservedCOpNames =
   [ "+", "-", "*", "/", "=", "!=",
-    "<", ">", "&&", "||", "!" ]
+    "<", ">", "&&", "||", "!", "~" ]
 
 lexer :: Tok.GenTokenParser String () Identity
 lexer = Tok.makeTokenParser langDefC
@@ -127,7 +128,7 @@ simpleExpr = ((Expr . ArExpr <$> aExpression)
 returnStmt :: Parser Stmt
 returnStmt = do
   reserved "return"
-  expr <- simpleExpr <|> (return ReturnNull <* semi)
+  expr <- simpleExpr <|> (ReturnNull <$ semi)
   return $ Return expr
 
 whileStmt :: Parser Stmt
@@ -171,7 +172,8 @@ bExpression :: Parser BExpr
 bExpression = buildExpressionParser bOperators bTerm
 
 aOperators :: [[Operator Char () AExpr]]
-aOperators = [ [Prefix (reservedOp "-" >> return  Neg              )          ]
+aOperators = [ [Prefix (reservedOp "-" >> return  Neg              )          ,
+                Prefix (reservedOp "~" >> return  Complement       )          ]
              , [Infix  (reservedOp "*" >> return (ABinary Multiply)) AssocLeft,
                 Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft]
              , [Infix  (reservedOp "+" >> return (ABinary Add     )) AssocLeft,
@@ -190,7 +192,7 @@ aTerm =  parens aExpression
      <|> fmap Var identifier
      <|> (lookAhead (symbol "0b") >> fmap IntConst binaryInteger)
      <|> fmap IntConst integer
-     <|> fmap CharConst singleChar
+     <|> fmap (IntConst . fromIntegral . fromEnum) singleChar
 
 bTerm :: ParsecT String () Identity BExpr
 bTerm =  parens bExpression

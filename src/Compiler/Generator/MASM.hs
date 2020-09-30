@@ -20,7 +20,7 @@ class Emittable e where
 
 
 generateMASM :: Either Err Stmt -> IO String
-generateMASM (Left e) = return "cannot generate .asm"
+generateMASM (Left e)  = return "cannot generate .asm"
 generateMASM (Right p) = return $ codeSection p
   --    imports
   -- <> constSection p
@@ -29,11 +29,9 @@ generateMASM (Right p) = return $ codeSection p
 
 
 instance Emittable Stmt where
-
   emitData (Block stmts) = foldl1 (++) $ emitData <$> stmts
   emitData (Func t name params stmts) = emitData stmts
   emitData (Assign t name (Expr (ArExpr (IntConst i)))) = name <> " dword " <> show i
-  emitData (Assign t name (Expr (ArExpr (CharConst i)))) = name <> " dword " <> show i
   emitData (Return stmt) = ""
   emitData ReturnNull = ""
   emitData _ = ""
@@ -52,7 +50,6 @@ instance Emittable Stmt where
     -- <> name <> " endp\n\n"
   emitCode (Assign t name stmt) = ""
   emitCode (Return (Expr (ArExpr (IntConst i))))  = "mov eax, " <> show i
-  emitCode (Return (Expr (ArExpr (CharConst i)))) = "mov eax, " <> show i
   emitCode ReturnNull = "ret"
   emitCode _ = ""
 
@@ -70,7 +67,6 @@ instance Emittable Expr where
 instance Emittable AExpr where
   emitData (Var name) = ""
   emitData (IntConst i) = show i
-  emitData (CharConst i) = show i
   emitData (ABinary op aExpr1 aExpr2) = emitData aExpr1 <> "\n" <> emitData aExpr2
   emitData (Neg aExpr) = ""
 
@@ -79,7 +75,6 @@ instance Emittable AExpr where
   emitCode (Neg aExpr) = ""
   emitCode (Var name) = name
   emitCode (IntConst i) = show i
-  emitCode (CharConst i) = "\'" <> show i <> "\'"
   emitCode (ABinary op aExpr1 aExpr2) =
     case op of
       Add      -> "add " <> emitCode aExpr1 <> ", " <> emitCode aExpr2
@@ -162,6 +157,6 @@ codeSection :: Stmt -> String
 codeSection program = case emittedProg of
   [] -> ""
   -- _  -> "section .code\n" <> emittedProg
-  _ -> emittedProg <> "\tmov b, eax"
+  _  -> emittedProg <> "\tmov b, eax"
   where
     emittedProg = emitCode program

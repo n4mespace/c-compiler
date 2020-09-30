@@ -1,24 +1,27 @@
 module Lib
   ( main
-  , parseFile
   )
 where
 
-import           Compiler.Generator.MASM  (generateMASM)
+import           Compiler.Generator.MASM (generateMASM)
 import           Compiler.Grammar        (checkGrammar)
 import           Compiler.Parser
 
 import           Text.Pretty.Simple      (pPrint)
 
+
 main :: FilePath -> FilePath -> IO ()
 main filePath generateTo = do
-  program <- parseFile filePath >>= checkGrammar
+  program <- parseFile filePath
+         >>= checkGrammar
+
   case program of
     Left e -> print e >> fail "parse error"
     Right r -> do
       putStrLn "{-# GENERATED AST-TOKENS #-}"
       pPrint r
-  asm <- generateMASM program
-  putStrLn "\n{-# GENERATED .ASM #-}"
-  putStrLn asm
-  writeFile generateTo asm
+
+  -- asm <- generateMASM program
+  -- putStrLn "\n{-# GENERATED .ASM #-}"
+  -- putStrLn asm
+  -- writeFile generateTo asm

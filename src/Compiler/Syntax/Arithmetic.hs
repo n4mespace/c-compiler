@@ -1,15 +1,15 @@
-module Compiler.Syntax.Arithmetic 
+module Compiler.Syntax.Arithmetic
   ( AExpr (..)
   , ABinOp (..)
-  ) 
+  )
 where
 
 
 data AExpr
   = Var String
   | IntConst Integer
-  | CharConst Char
   | Neg AExpr
+  | Complement AExpr
   | ABinary ABinOp AExpr AExpr
   deriving (Show)
 
