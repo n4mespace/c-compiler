@@ -1,3 +1,7 @@
+// int main() {
+//     return ~((10 - 2) - (2 - 10));
+// }
+
 int main() {
-    return 10 - 2;
+    return 10 - (3 - 5);
 }

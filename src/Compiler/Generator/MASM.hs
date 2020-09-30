@@ -19,7 +19,7 @@ generateMASM (Right p) = return $ codeSection p
 codeSection :: Stmt -> String
 codeSection program = case emittedProg of
   [] -> ""
-  _  -> emittedProg <> "\tmov b, eax"
+  _  -> emittedProg <> emitNLn "mov b, eax"
   where
     emittedProg :: String
     emittedProg = emitCode program
@@ -31,69 +31,51 @@ class Emittable e where
 
 
 instance Emittable Stmt where
-  emitCode (Block stmts) = foldl1 (++) $ emitCode <$> stmts
-  emitCode (Func t name params stmts) = emitLn . emitCode $ stmts
+  emitCode (Block stmts) = concat $ emitCode <$> stmts
+  emitCode (Func _ _ _ stmts) = emitLn . emitCode $ stmts
   emitCode (Assign t name stmt) = ""
-  emitCode (Return (Expr (ArExpr (IntConst i))))  = "mov eax, " <> show i
+  emitCode (Return (Expr expr)) = emitCode expr
   emitCode ReturnNull = "ret"
   emitCode _ = ""
-
 
 instance Emittable Expr where
   emitCode (ArExpr aExpr)   = emitCode aExpr
   emitCode (BoolExpr bExpr) = ""
 
 instance Emittable AExpr where
-  emitCode (Neg aExpr) = ""
-  emitCode (Var name) = name
-  emitCode (IntConst i) = show i
+  emitCode (Neg aExpr) = emitCode aExpr <> emitNLn "neg eax"
+  emitCode (Var _) = ""
+  emitCode (IntConst i) = emitNLn $ "mov eax, " <> show i
+  emitCode (Complement aExpr) = emitCode aExpr 
+                             <> emitNLn "xor eax, -1" 
   emitCode (ABinary op aExpr1 aExpr2) =
     case op of
-      Add      -> "add " <> emitCode aExpr1 <> ", " <> emitCode aExpr2
-      Subtract -> "sub " <> emitCode aExpr1 <> ", " <> emitCode aExpr2
-      Multiply -> "mul " <> emitCode aExpr1 <> ", " <> emitCode aExpr2
-      Divide   -> "div " <> emitCode aExpr1 <> ", " <> emitCode aExpr2
+      Subtract -> emitCode aExpr2
+               <> pushEax 
+               <> emitCode aExpr1
+               <> sub
+      _ -> ""
 
 
 -- Helpers
 emitLn :: String -> String
 emitLn = ("\t" <>) . (<> "\n")
 
-emitJne :: String -> String
-emitJne = emitLn . ("jne " <>)
-
-emitJmp :: String -> String
-emitJmp = emitLn . ("jmp " <>)
+emitNLn :: String -> String
+emitNLn = ("\n\t" <>) 
 
 emitLabel :: String -> String
 emitLabel = (<> ":\n")
 
-getLbl :: Integer -> (Integer, String)
-getLbl count = (count + 1, "L" <> show count)
-
-
 -- Basic math functions
 popEbx :: String
-popEbx = emitLn "pop ebx"
+popEbx = emitNLn "pop ebx"
 
 popEax :: String
-popEax = emitLn "pop eax"
+popEax = emitNLn "pop eax"
 
 pushEax :: String
-pushEax = emitLn "push eax"
-
-add :: String
-add = popEbx <> emitLn "add eax, ebx"
+pushEax = emitNLn "push eax"
 
 sub :: String
-sub = popEbx <> emitLn "add eax, ebx" <> emitLn "neg eax"
-
-mul :: String
-mul = popEbx <> emitLn "mul ebx"
-
-divide :: String
-divide =
-     emitLn "mov ebx, eax"
-  <> popEax
-  <> emitLn "mov edx, 0"
-  <> emitLn "DIV ebx"
+sub = popEbx <> emitNLn "sub eax, ebx"
