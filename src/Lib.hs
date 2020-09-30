@@ -17,11 +17,11 @@ main filePath generateTo = do
 
   case program of
     Left e -> print e >> fail "parse error"
-    Right r -> do
+    Right p -> do
       putStrLn "{-# GENERATED AST-TOKENS #-}"
-      pPrint r
+      pPrint p
 
-  -- asm <- generateMASM program
-  -- putStrLn "\n{-# GENERATED .ASM #-}"
-  -- putStrLn asm
-  -- writeFile generateTo asm
+  asm <- generateMASM program
+  putStrLn "\n{-# GENERATED .ASM #-}"
+  putStrLn asm
+  writeFile generateTo asm

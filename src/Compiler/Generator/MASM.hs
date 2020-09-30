@@ -12,42 +12,27 @@ import           Data.Functor               ((<$>))
 import           Data.Monoid                ((<>))
 
 
+generateMASM :: Either Err Stmt -> IO String
+generateMASM (Left e)  = print e >> fail "parse error"
+generateMASM (Right p) = return $ codeSection p
+
+codeSection :: Stmt -> String
+codeSection program = case emittedProg of
+  [] -> ""
+  _  -> emittedProg <> "\tmov b, eax"
+  where
+    emittedProg :: String
+    emittedProg = emitCode program
+
+
 -- Make program capable to generate code to different .asm sections
 class Emittable e where
-  emitData :: e -> String
-  emitConst :: e -> String
   emitCode :: e -> String
 
 
-generateMASM :: Either Err Stmt -> IO String
-generateMASM (Left e)  = return "cannot generate .asm"
-generateMASM (Right p) = return $ codeSection p
-  --    imports
-  -- <> constSection p
-  -- <> dataSection p
-  -- <> codeSection p
-
-
 instance Emittable Stmt where
-  emitData (Block stmts) = foldl1 (++) $ emitData <$> stmts
-  emitData (Func t name params stmts) = emitData stmts
-  emitData (Assign t name (Expr (ArExpr (IntConst i)))) = name <> " dword " <> show i
-  emitData (Return stmt) = ""
-  emitData ReturnNull = ""
-  emitData _ = ""
-
-  emitConst (Return stmt)              = ""
-  emitConst ReturnNull                 = ""
-  emitConst (Assign t name stmt)       = ""
-  emitConst (Func t name params stmts) = emitConst stmts
-  emitConst (Block stmts)              = foldl1 (++) $ emitConst <$> stmts
-  emitConst _                          = ""
-
   emitCode (Block stmts) = foldl1 (++) $ emitCode <$> stmts
   emitCode (Func t name params stmts) = emitLn . emitCode $ stmts
-    --    name <> " proc\n"
-    -- <> (emitLn . emitCode $ stmts)
-    -- <> name <> " endp\n\n"
   emitCode (Assign t name stmt) = ""
   emitCode (Return (Expr (ArExpr (IntConst i))))  = "mov eax, " <> show i
   emitCode ReturnNull = "ret"
@@ -55,23 +40,10 @@ instance Emittable Stmt where
 
 
 instance Emittable Expr where
-  emitData (ArExpr aExpr)   = emitData aExpr
-  emitData (BoolExpr bExpr) = ""
-
-  emitConst (ArExpr aExpr)   = emitConst aExpr
-  emitConst (BoolExpr bExpr) = ""
-
   emitCode (ArExpr aExpr)   = emitCode aExpr
   emitCode (BoolExpr bExpr) = ""
 
 instance Emittable AExpr where
-  emitData (Var name) = ""
-  emitData (IntConst i) = show i
-  emitData (ABinary op aExpr1 aExpr2) = emitData aExpr1 <> "\n" <> emitData aExpr2
-  emitData (Neg aExpr) = ""
-
-  emitConst _ = ""
-
   emitCode (Neg aExpr) = ""
   emitCode (Var name) = name
   emitCode (IntConst i) = show i
@@ -125,38 +97,3 @@ divide =
   <> popEax
   <> emitLn "mov edx, 0"
   <> emitLn "DIV ebx"
-
-
-
-imports :: String
-imports =
-     ".586\n"
-  <> ".model flat, stdcall\n\n"
-  <> "option casemap: none\n\n"
-  -- <> "include \\masm32\\include\\kernel32.inc\n"
-  -- <> "include \\masm32\\include\\user32.inc\n"
-  -- <> "include \\masm32\\include\\windows.inc\n\n"
-  -- <> "includelib \\masm32\\lib\\kernel32.lib\n"
-  -- <> "includelib \\masm32\\lib\\user32.lib\n"
-
-dataSection :: Stmt -> String
-dataSection program = case emittedProg of
-  [] -> ""
-  _  -> "section .data\n" <> emittedProg <> "\n"
-  where
-    emittedProg = emitData program
-
-constSection :: Stmt -> String
-constSection program = case emittedProg of
-  [] -> ""
-  _  -> "section .const\n" <> emittedProg <> "\n"
-  where
-    emittedProg = emitConst program
-
-codeSection :: Stmt -> String
-codeSection program = case emittedProg of
-  [] -> ""
-  -- _  -> "section .code\n" <> emittedProg
-  _  -> emittedProg <> "\tmov b, eax"
-  where
-    emittedProg = emitCode program
