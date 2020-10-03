@@ -1,11 +1,11 @@
-module Compiler.Syntax.Boolean 
+module Compiler.Syntax.Boolean
   ( BExpr (..)
   , RBinOp (..)
   , BBinOp (..)
   )
 where
 
-import Compiler.Syntax.Arithmetic (AExpr)
+import           Compiler.Syntax.Arithmetic (AExpr)
 
 data BExpr
   = BoolConst Bool

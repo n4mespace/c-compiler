@@ -8,8 +8,8 @@ module Compiler.Syntax.Control
 where
 
 
-import Compiler.Syntax.Boolean
-import Compiler.Syntax.Arithmetic
+import           Compiler.Syntax.Arithmetic
+import           Compiler.Syntax.Boolean
 
 
 type Name = String

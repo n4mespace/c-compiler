@@ -21,7 +21,6 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
 
 source-repository head
   type: git
@@ -56,7 +55,7 @@ executable c-compiler
       Paths_c_compiler
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -haddock
   build-depends:
       base >=4.7 && <5
     , bytestring

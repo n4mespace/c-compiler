@@ -1,3 +1,3 @@
-char main1() {
-    return 'a';
+int main() {
+    return ~((10 - 2) + (2 - 10));
 }
