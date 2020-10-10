@@ -40,7 +40,7 @@ reservedCNames =
 
 reservedCOpNames :: [String]
 reservedCOpNames =
-  [ "+", "-", "*", "/", "=", "!=",
+  [ "+", "-", "*", "/", "=", "!=", "%",
     "<", ">", "&&", "||", "!", "~" ]
 
 lexer :: Tok.GenTokenParser String () Identity
@@ -91,9 +91,9 @@ whileParser :: Parser Stmt
 whileParser = whiteSpace >> statement <* eof
 
 statement :: Parser Stmt
-statement =   braces statement
-          <|> parens statement
-          <|> sequenceOfStmt
+statement = braces statement
+        <|> parens statement
+        <|> sequenceOfStmt
 
 sequenceOfStmt :: Parser Stmt
 sequenceOfStmt = do
@@ -173,11 +173,12 @@ bExpression = buildExpressionParser bOperators bTerm
 
 aOperators :: [[Operator Char () AExpr]]
 aOperators = [ [Prefix (reservedOp "-" >> return  Neg              )          ,
-                Prefix (reservedOp "~" >> return  Complement       )          ]
+                Prefix (reservedOp "~" >> return  Complement       )           ]
              , [Infix  (reservedOp "*" >> return (ABinary Multiply)) AssocLeft,
-                Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft]
+                Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft,
+                Infix  (reservedOp "%" >> return (ABinary Mod     )) AssocLeft ]
              , [Infix  (reservedOp "+" >> return (ABinary Add     )) AssocLeft,
-                Infix  (reservedOp "-" >> return (ABinary Subtract)) AssocLeft] ]
+                Infix  (reservedOp "-" >> return (ABinary Subtract)) AssocLeft ] ]
 
 bOperators :: [[Operator Char () BExpr]]
 bOperators = [ [Prefix (reservedOp "!"  >> return  Not        )           ]
@@ -216,5 +217,5 @@ parseFile filePath = do
   withFile filePath ReadMode (\handle -> do
     program <- hGetContents handle
     case parse whileParser filePath program of
-      Left e  -> print e >> fail "parse error"
+      Left e  -> print e >> fail "lexer error"
       Right r -> return r)

@@ -14,7 +14,7 @@ import           Control.Monad.State.Lazy
 import           Data.Either
 import           Data.Map.Lazy              (Map, empty)
 import           Data.Monoid
-
+import           Text.Pretty.Simple      (pPrint)
 
 -- data Id = Id {
 --     getType :: Type
@@ -30,8 +30,14 @@ data Err
   | BadExpression String
   deriving Show
 
-checkGrammar :: Stmt -> IO (Either Err Stmt)
-checkGrammar = return . checker
+checkGrammar :: Stmt -> IO Stmt
+checkGrammar parsedProgram = do
+  case checker parsedProgram of
+    Left e -> print e >> fail "parser error"
+    Right _ -> do
+      putStrLn "{-# GENERATED AST-TOKENS #-}"
+      pPrint parsedProgram
+      return parsedProgram
 
 checker :: Stmt -> Either Err Stmt
 checker = \case
@@ -77,14 +83,16 @@ checker = \case
         _ -> return VOID
 
   Block [] -> Left BadReturn
-  Block [s] -> case checker s of
-    Left e  -> Left e
-    Right _ -> Right s
-  Block (s:ss) -> case checker s of
-    Left e -> Left e
-    Right _ -> case checker (Block ss) of
-      Right rs -> Right $ Block $ s:ss
-      Left e   -> Left e
+  -- Block [s] -> case checker s of
+  --   Left e  -> Left e
+  --   Right _ -> Right s
+  -- Block (s:ss) -> case checker s of
+  --   Left e -> Left e
+  --   Right _ -> case checker (Block ss) of
+  --     Right rs -> Right $ Block $ s:ss
+  --     Left e   -> Left e
+  Block [s] -> checker s
+  Block (s:ss) -> Block <$> sequence [checker s, checker $ Block ss]
 
   assign@(Assign aType aName expr) ->
     Right assign

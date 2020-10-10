@@ -18,4 +18,5 @@ data ABinOp
   | Subtract
   | Multiply
   | Divide
+  | Mod
   deriving (Show)
