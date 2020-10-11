@@ -15,7 +15,7 @@ import           Compiler.Syntax.Boolean
 type Name = String
 
 data Type = INT | CHAR | VOID
-  deriving (Show)
+  deriving (Show, Eq)
 
 data FParams = Param Type Name
   deriving (Show)

@@ -14,9 +14,16 @@ import           Text.Parsec.Prim                       (ParsecT)
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Char     (anyChar)
 import           Text.ParserCombinators.Parsec.Expr
-import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token    as Tok
 
+
+parseFile :: String -> IO Stmt
+parseFile filePath = do
+  withFile filePath ReadMode (\handle -> do
+    program <- hGetContents handle
+    case parse whileParser filePath program of
+      Left e  -> print e >> fail "lexer error"
+      Right r -> return r)
 
 -- Define C language
 langDefC :: Tok.LanguageDef ()
@@ -212,10 +219,3 @@ relation :: ParsecT String () Identity RBinOp
 relation =  (reservedOp ">" >> return Greater)
         <|> (reservedOp "<" >> return Less)
 
-parseFile :: String -> IO Stmt
-parseFile filePath = do
-  withFile filePath ReadMode (\handle -> do
-    program <- hGetContents handle
-    case parse whileParser filePath program of
-      Left e  -> print e >> fail "lexer error"
-      Right r -> return r)

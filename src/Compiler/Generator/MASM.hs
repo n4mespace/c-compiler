@@ -10,6 +10,7 @@ import           Compiler.Grammar           (Err (..))
 import           Data.Functor               ((<$>))
 import           Data.Monoid                ((<>))
 
+
 generateMASM :: FilePath -> Stmt -> IO ()
 generateMASM destination program = do
   case asm of
@@ -33,8 +34,8 @@ instance Emittable Stmt where
   emitCode (Block stmts)        = emitBlock $ emitCode <$> stmts
   emitCode (Func _ _ _ stmts)   = emitCode stmts
   emitCode (Assign t name stmt) = Left $ BadExpression $ "assign: " <> name
+  emitCode (Return ReturnNull)  = emitLn "ret"
   emitCode (Return (Expr expr)) = emitCode expr
-  emitCode ReturnNull           = Right "ret"
   emitCode _                    = Left $ BadExpression "unknown statement"
 
 instance Emittable Expr where
@@ -50,21 +51,21 @@ instance Emittable AExpr where
                            <$*> emitNLn "xor eax, -1"
   emitCode (ABinary op aExpr1 aExpr2) =
     case op of
-      Subtract -> emitBinaryFunc sub aExpr1 aExpr2
-      Add -> emitBinaryFunc add aExpr1 aExpr2
-      Mod -> emitBinaryFunc modulo aExpr1 aExpr2
+      Subtract -> emitBinaryFunc sub
+      Add -> emitBinaryFunc add
+      Mod -> emitBinaryFunc modulo
       badOp -> Left $ BadExpression $ "unknown operation: " <> show badOp
+    where
+      emitBinaryFunc :: Either Err String -> Either Err String
+      emitBinaryFunc f = 
+        emitBlock [ emitCode aExpr2
+                  , pushEax
+                  , emitCode aExpr1
+                  , f ]
 
 -- Helpers
 emitBlock :: [Either Err String] -> Either Err String
 emitBlock = (concat <$>) . sequence
-
-emitBinaryFunc :: Either Err String -> AExpr -> AExpr -> Either Err String
-emitBinaryFunc f e1 e2 = 
-  emitBlock [ emitCode e2
-            , pushEax
-            , emitCode e1
-            , f ]
 
 (<$*>) :: Either Err String -> Either Err String -> Either Err String
 expr1 <$*> expr2 = (<>) <$> expr1
@@ -100,6 +101,6 @@ add = popEbx
 
 modulo :: Either Err String
 modulo = popEbx 
- <$*> emitNLn "xor edx, edx"
- <$*> emitNLn "div ebx"
- <$*> emitNLn "mov eax, edx"
+    <$*> emitNLn "xor edx, edx"
+    <$*> emitNLn "div ebx"
+    <$*> emitNLn "mov eax, edx"
