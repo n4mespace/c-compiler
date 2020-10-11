@@ -34,7 +34,7 @@ instance Emittable Stmt where
   emitCode (Block stmts)        = emitBlock $ emitCode <$> stmts
   emitCode (Func _ _ _ stmts)   = emitCode stmts
   emitCode (Assign t name stmt) = Left $ BadExpression $ "assign: " <> name
-  emitCode (Return ReturnNull)  = emitLn "ret"
+  emitCode (Return Null)  = emitLn "ret"
   emitCode (Return (Expr expr)) = emitCode expr
   emitCode _                    = Left $ BadExpression "unknown statement"
 

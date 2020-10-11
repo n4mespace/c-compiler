@@ -1,17 +1,13 @@
 
-	mov eax, 10
-	push eax
-	mov eax, 2
-	neg eax
-	pop ebx
-	sub eax, ebx
-	push eax
-	mov eax, 2
+	mov eax, 3
 	push eax
 	mov eax, 10
 	pop ebx
-	sub eax, ebx
+	xor edx, edx
+	div ebx
+	mov eax, edx
+	push eax
+	mov eax, 1
 	pop ebx
-	add eax, ebx
-	xor eax, -1
+	sub eax, ebx
 	mov b, eax

@@ -116,6 +116,8 @@ statement'
   <|> try ifStmt
   <|> try whileStmt
   <|> try assignStmt
+  <|> try emptyAssignStmt
+  <|> try assignValue
   <|> try simpleExpr
 
 ifStmt :: Parser Stmt
@@ -135,7 +137,7 @@ simpleExpr = ((Expr . ArExpr <$> aExpression)
 returnStmt :: Parser Stmt
 returnStmt = do
   reserved "return"
-  expr <- simpleExpr <|> (ReturnNull <$ semi)
+  expr <- simpleExpr <|> (Null <$ semi)
   return $ Return expr
 
 whileStmt :: Parser Stmt
@@ -152,6 +154,20 @@ assignStmt = do
   reservedOp "="
   expr <- simpleExpr
   return $ Assign typeOfVar varName expr
+
+emptyAssignStmt :: Parser Stmt
+emptyAssignStmt = do
+  typeOfVar <- typeOfExpr
+  varName <- identifier
+  _ <- semi
+  return $ EmptyAssign typeOfVar varName
+
+assignValue :: Parser Stmt
+assignValue = do
+  varName <- identifier
+  reservedOp "="
+  expr <- simpleExpr
+  return $ ValueAssign varName expr
 
 typeOfExpr :: Parser Type
 typeOfExpr = (symbol "int" >> return INT)

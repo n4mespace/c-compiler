@@ -1,10 +1,9 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Compiler.Grammar
   ( checkGrammar
   , Err(..)
-  ) where
+  ) 
 
+where
 
 import           Compiler.Syntax.Arithmetic     (AExpr (..))
 import           Compiler.Syntax.Control        (Expr (..), Name, Stmt (..),
@@ -67,14 +66,14 @@ checker code = do
         findReturn (Block [s]) = findReturn s
         findReturn (Block (s:ss)) = merge (findReturn s) (findReturn $ Block ss)
         findReturn (Return stmt) = [stmt]
-        findReturn ReturnNull = [ReturnNull]
+        findReturn Null = [Null]
         findReturn _ = []
         
         returnExprs :: [Stmt]
         returnExprs = findReturn body
         
         parseReturn :: Stmt -> Either Err Type
-        parseReturn ReturnNull = Right VOID
+        parseReturn Null = Right VOID
         parseReturn _          = Right INT
         
         returnType :: Either Err Type
@@ -89,8 +88,8 @@ checker code = do
                 <$> sequence [ checker s, 
                                checker $ Block ss ]
       
-    assign@(Assign aType aName expr) -> do
-      modify $ M.insert aName assign
+    Assign aType aName expr -> do
+      modify $ M.insert aName expr
 
       case exprType of
         Right t
@@ -106,6 +105,17 @@ checker code = do
         exprType :: Either Err Type
         exprType = findType expr
 
+    emptyAssign@(EmptyAssign aType aName) -> do
+      modify $ M.insert aName Null
+      return emptyAssign
+
+    ValueAssign aName expr -> do
+      case M.lookup aName env of
+        Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> aName
+        Just _ -> do
+          modify $ M.insert aName expr
+          checker expr
+
     binary@(Expr (ArExpr (ABinary _ expr1 expr2))) -> 
          lookupCheck expr1 
       >> lookupCheck expr2
@@ -114,6 +124,7 @@ checker code = do
         lookupCheck (Var varname) = 
           case M.lookup varname env of
             Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> varname
+            Just Null -> lift $ Left $ BadExpression $ "uninitialized var: " <> varname
             Just _ -> return binary
         lookupCheck _ = return binary
 
