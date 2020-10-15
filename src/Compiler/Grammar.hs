@@ -1,7 +1,7 @@
 module Compiler.Grammar
   ( checkGrammar
   , Err(..)
-  ) 
+  )
 
 where
 
@@ -10,11 +10,11 @@ import           Compiler.Syntax.Control        (Expr (..), Name, Stmt (..),
                                                  Type (..))
 import           Control.Monad.Trans.Class      (lift)
 import           Control.Monad.Trans.State.Lazy
-import qualified Data.Map.Lazy as M
+import qualified Data.Map.Strict                  as M
 import           Text.Pretty.Simple             (pPrint)
 
-
-type GlobalEnv = M.Map Name Stmt
+type EbpOffset = Int
+type GlobalEnv = M.Map Name EbpOffset
 type GlobalState = StateT GlobalEnv (Either Err) Stmt
 
 data Err
@@ -28,110 +28,121 @@ data Err
 
 checkGrammar :: Stmt -> IO Stmt
 checkGrammar parsedProgram = do
-  case checkerResult of
+  case checkerProgram of
     Left e -> print e >> fail "parser error"
-    Right _ -> do
-      putStrLn "{-# GENERATED AST-TOKENS #-}"
+    Right program -> do
+      putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pPrint parsedProgram
-      return parsedProgram
+
+      pPrint program
+      return program
   where
-    checkerResult :: Either Err Stmt
-    checkerResult = evalStateT (checker parsedProgram) M.empty
+    checkerProgram :: Either Err Stmt
+    checkerProgram = evalStateT (checker parsedProgram) (M.singleton "" 0)
 
 checker :: Stmt -> GlobalState
 checker code = do
   env <- get
 
   case code of
-    func@(Func fType fName fParams body) -> do
-      case M.lookup fName env of
-        Nothing -> modify $ M.insert fName func
-        Just _ -> lift $ Left $ BadExpression $ "cannot reassign a function: " <> fName
-
+    Func fType fName fParams body -> do
       case fType of
         INT -> case returnType of
-          Right INT -> checker body
+          Right INT -> returnFunc
           Left e    -> lift $ Left e
           _         -> lift $ Left $ UnExpectedType INT
         CHAR -> case returnType of
-          Right INT -> checker body
+          Right INT -> returnFunc
           Left e    -> lift $ Left e
           _         -> lift $ Left $ UnExpectedType CHAR
         VOID -> case returnType of
-          Right VOID -> checker body
+          Right VOID -> returnFunc
           Left e     -> lift $ Left e
           _          -> lift $ Left $ UnExpectedType VOID
-      where 
+      where
         findReturn :: Stmt -> [Stmt]
         findReturn (Block [s]) = findReturn s
-        findReturn (Block (s:ss)) = merge (findReturn s) (findReturn $ Block ss)
+        findReturn (Block (s:ss)) = merge (findReturn s)  (findReturn $ Block ss)
         findReturn (Return stmt) = [stmt]
         findReturn Null = [Null]
         findReturn _ = []
-        
+
         returnExprs :: [Stmt]
         returnExprs = findReturn body
-        
+
         parseReturn :: Stmt -> Either Err Type
         parseReturn Null = Right VOID
-        parseReturn _          = Right INT
-        
+        parseReturn _    = Right INT
+
         returnType :: Either Err Type
         returnType = case length returnExprs of
           0 -> Right VOID
           1 -> parseReturn (head returnExprs)
           _ -> Left BadReturn
 
+        returnFunc :: GlobalState 
+        returnFunc = Func fType fName fParams <$> checker body
+
     Block [] -> lift $ Left BadReturn
     Block [s] -> checker s
-    Block (s:ss) -> Block 
-                <$> sequence [ checker s, 
-                               checker $ Block ss ]
-      
+    Block ss -> Block <$> traverse checker ss
+
     Assign aType aName expr -> do
-      modify $ M.insert aName expr
+      case M.lookup aName env of
+        Nothing -> do
+          modify $ M.insert aName ebpOffset
+          Assign aType (constructAddress ebpOffset) <$> checker expr    
+        Just _  -> lift $ Left $ BadExpression $ "already declared var: " <> aName
+      where
+        ebpOffset :: EbpOffset
+        ebpOffset = getMaxFromMap env + 4
 
-      case exprType of
-        Right t
-          | aType == VOID -> lift $ Left $ CannotAssignTo aName VOID
-          | t == CHAR || t == INT -> checker expr
-          | otherwise -> lift $ Left $ TypesMissmatch aType t
-        Left e -> lift $ Left e
-      where 
-        findType :: Stmt -> Either Err Type
-        findType (Expr (ArExpr (IntConst _))) = Right INT
-        findType _ = Left $ CannotAssignTo aName aType
-        
-        exprType :: Either Err Type
-        exprType = findType expr
-
-    emptyAssign@(EmptyAssign aType aName) -> do
-      modify $ M.insert aName Null
-      return emptyAssign
+    EmptyAssign aType aName -> do
+      case M.lookup aName env of
+        Nothing -> do
+          modify $ M.insert aName ebpOffset
+          return $ EmptyAssign aType (constructAddress ebpOffset)
+        Just _  -> lift $ Left $ BadExpression $ "already declared var: " <> aName
+      where
+        ebpOffset :: EbpOffset
+        ebpOffset = 0
 
     ValueAssign aName expr -> do
       case M.lookup aName env of
         Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> aName
-        Just _ -> do
-          modify $ M.insert aName expr
-          checker expr
+        Just n -> ValueAssign (constructAddress n) <$> checker expr
 
-    binary@(Expr (ArExpr (ABinary _ expr1 expr2))) -> 
-         lookupCheck expr1 
-      >> lookupCheck expr2
+    Expr (ArExpr (ABinary op expr1 expr2)) ->
+      case ABinary op <$> lookupCheck expr1 <*> lookupCheck expr2 of
+        Left e -> lift $ Left e
+        Right v -> return $ Expr . ArExpr $ v
       where
-        lookupCheck :: AExpr -> GlobalState 
-        lookupCheck (Var varname) = 
-          case M.lookup varname env of
-            Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> varname
-            Just Null -> lift $ Left $ BadExpression $ "uninitialized var: " <> varname
-            Just _ -> return binary
-        lookupCheck _ = return binary
+        lookupCheck :: AExpr -> Either Err AExpr
+        lookupCheck (Var varName) =
+          case M.lookup varName env of
+            Nothing -> Left $ BadExpression $ "unknown var: " <> varName
+            Just n -> Right $ Var $ constructAddress n
+        lookupCheck (ABinary op' expr1' expr2') = ABinary op' <$> lookupCheck expr1' <*> lookupCheck expr2'
+        lookupCheck rest = Right rest
 
-    Return stmt -> checker stmt
+    Expr (ArExpr (Var varName)) -> do
+      case M.lookup varName env of
+        Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> varName
+        Just 0 -> lift $ Left $ BadExpression $ "uninitialized var: " <> varName
+        Just n -> return $ Expr . ArExpr . Var $ constructAddress n
+
+    Return stmt -> Return <$> checker stmt
 
     stmt -> return stmt
 
+
+-- Helpers
 merge :: [a] -> [a] -> [a]
 merge [] ys     = ys
 merge (x:xs) ys = x : merge ys xs
+
+constructAddress :: EbpOffset -> String
+constructAddress = ("dword ptr [ebp + " <>) . (<> "]") . show
+
+getMaxFromMap :: Ord v => M.Map k v -> v
+getMaxFromMap m = maximum (snd <$> M.toList m)

@@ -42,7 +42,7 @@ langDefC = Tok.LanguageDef
 
 reservedCNames :: [String]
 reservedCNames =
-  [ "int", "char", "while", "for", "&&", "||", "!",
+  [ "int", "char", "float", "while", "for", "&&", "||", "!",
     "return", "if", "else", "True", "False", "void"]
 
 reservedCOpNames :: [String]
@@ -173,6 +173,7 @@ typeOfExpr :: Parser Type
 typeOfExpr = (symbol "int" >> return INT)
          <|> (symbol "char" >> return CHAR)
          <|> (symbol "void" >> return VOID)
+         <?> "bad type"
 
 funcParam :: Parser FParams
 funcParam = do

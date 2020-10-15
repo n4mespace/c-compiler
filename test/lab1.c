@@ -1,7 +1,7 @@
 int main() {
-    int a;
-    a = 3;
-    return a - 10 % 3;
+    int b;
+    int a = 1;
+    int g = 3;
+    a = a + 2 + g;
+    return a;
 }
-
-

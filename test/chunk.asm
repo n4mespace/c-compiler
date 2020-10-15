@@ -1,13 +1,20 @@
-
-	mov eax, 3
-	push eax
-	mov eax, 10
-	pop ebx
-	xor edx, edx
-	div ebx
-	mov eax, edx
-	push eax
+	enter 0, 0
+	
 	mov eax, 1
+	mov dword ptr [ebp + 4], eax
+	mov eax, 3
+	mov dword ptr [ebp + 8], eax
+	mov eax, dword ptr [ebp + 8]
+	push eax
+	mov eax, 2
+	push eax
+	mov eax, dword ptr [ebp + 4]
 	pop ebx
-	sub eax, ebx
+	add eax, ebx
+	pop ebx
+	add eax, ebx
+	mov dword ptr [ebp + 4], eax
+	mov eax, dword ptr [ebp + 4]
+	
+	leave
 	mov b, eax
