@@ -33,8 +33,6 @@ checkGrammar parsedProgram = do
     Right program -> do
       putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pPrint parsedProgram
-
-      pPrint program
       return program
   where
     checkerProgram :: Either Err Stmt
@@ -90,8 +88,9 @@ checker code = do
     Assign aType aName expr -> do
       case M.lookup aName env of
         Nothing -> do
+          checkedExpr <- checker expr
           modify $ M.insert aName ebpOffset
-          Assign aType (constructAddress ebpOffset) <$> checker expr    
+          return $ Assign aType (constructAddress ebpOffset) checkedExpr   
         Just _  -> lift $ Left $ BadExpression $ "already declared var: " <> aName
       where
         ebpOffset :: EbpOffset
@@ -100,36 +99,42 @@ checker code = do
     EmptyAssign aType aName -> do
       case M.lookup aName env of
         Nothing -> do
-          modify $ M.insert aName ebpOffset
-          return $ EmptyAssign aType (constructAddress ebpOffset)
+          modify $ M.insert aName 0
+          return $ EmptyAssign aType (constructAddress 0)
         Just _  -> lift $ Left $ BadExpression $ "already declared var: " <> aName
-      where
-        ebpOffset :: EbpOffset
-        ebpOffset = 0
 
     ValueAssign aName expr -> do
       case M.lookup aName env of
         Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> aName
+        Just 0 -> do
+          checkedExpr <- checker expr
+          modify $ M.insert aName ebpOffset
+          return $ ValueAssign (constructAddress ebpOffset) checkedExpr
         Just n -> ValueAssign (constructAddress n) <$> checker expr
+      where
+        ebpOffset :: EbpOffset
+        ebpOffset = getMaxFromMap env + 4
 
     Expr (ArExpr (ABinary op expr1 expr2)) ->
-      case ABinary op <$> lookupCheck expr1 <*> lookupCheck expr2 of
+      case ABinary op <$> lookupCheck env expr1 <*> lookupCheck env expr2 of
         Left e -> lift $ Left e
         Right v -> return $ Expr . ArExpr $ v
-      where
-        lookupCheck :: AExpr -> Either Err AExpr
-        lookupCheck (Var varName) =
-          case M.lookup varName env of
-            Nothing -> Left $ BadExpression $ "unknown var: " <> varName
-            Just n -> Right $ Var $ constructAddress n
-        lookupCheck (ABinary op' expr1' expr2') = ABinary op' <$> lookupCheck expr1' <*> lookupCheck expr2'
-        lookupCheck rest = Right rest
-
+        
     Expr (ArExpr (Var varName)) -> do
       case M.lookup varName env of
         Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> varName
         Just 0 -> lift $ Left $ BadExpression $ "uninitialized var: " <> varName
         Just n -> return $ Expr . ArExpr . Var $ constructAddress n
+
+    Expr (ArExpr (Neg expr)) -> 
+      case Neg <$> lookupCheck env expr of
+        Left e -> lift $ Left e
+        Right v -> return $ Expr . ArExpr $ v
+    
+    Expr (ArExpr (Complement expr)) -> 
+      case Complement <$> lookupCheck env expr of
+        Left e -> lift $ Left e
+        Right v -> return $ Expr . ArExpr $ v
 
     Return stmt -> Return <$> checker stmt
 
@@ -146,3 +151,16 @@ constructAddress = ("dword ptr [ebp + " <>) . (<> "]") . show
 
 getMaxFromMap :: Ord v => M.Map k v -> v
 getMaxFromMap m = maximum (snd <$> M.toList m)
+
+lookupCheck :: GlobalEnv -> AExpr -> Either Err AExpr
+lookupCheck env (Var varName) =
+  case M.lookup varName env of
+    Nothing -> Left $ BadExpression $ "unknown var: " <> varName
+    Just 0 -> Left $ BadExpression $ "uninitialized var: " <> varName
+    Just n -> Right $ Var $ constructAddress n
+lookupCheck env (ABinary op' expr1' expr2') = ABinary op' 
+                                          <$> lookupCheck env expr1' 
+                                          <*> lookupCheck env expr2'
+lookupCheck env (Neg expr1') = Neg <$> lookupCheck env expr1'
+lookupCheck env (Complement expr1') = Complement <$> lookupCheck env expr1' 
+lookupCheck _ rest = Right rest

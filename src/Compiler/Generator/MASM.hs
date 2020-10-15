@@ -30,11 +30,14 @@ class Emittable e where
 
 instance Emittable Stmt where
   emitCode (Block stmts)           = emitBlock $ emitCode <$> stmts
-  emitCode (Func _ _ _ stmts)      = emitBlock [ emitLn "enter 0, 0"
+  emitCode (Func _ _ _ stmts)      = emitBlock [ emitLn "push ebp"
+                                               , emitNLn "mov ebp, esp"
                                                , emitNLn "" 
                                                , emitCode stmts
                                                , emitNLn ""
-                                               , emitNLn "leave" 
+                                               , emitNLn "mov esp, ebp"
+                                               , emitNLn "pop ebp" 
+                                               , emitNLn "" 
                                                , emitNLn "mov b, eax" ]
   emitCode (Assign _ name (Expr expr))    = emitBlock [ emitCode expr
                                                       , emitNLn $ "mov " <> name <> ", eax" ]

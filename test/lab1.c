@@ -1,7 +1,6 @@
 int main() {
-    int b;
-    int a = 1;
-    int g = 3;
-    a = a + 2 + g;
+    int b = 15 - 3;
+    char a = 'a';
+    a = a + b;
     return a;
 }
