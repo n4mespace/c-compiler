@@ -14,9 +14,16 @@ import           Text.Parsec.Prim                       (ParsecT)
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Char     (anyChar)
 import           Text.ParserCombinators.Parsec.Expr
-import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token    as Tok
 
+
+parseFile :: String -> IO Stmt
+parseFile filePath = do
+  withFile filePath ReadMode (\handle -> do
+    program <- hGetContents handle
+    case parse whileParser filePath program of
+      Left e  -> print e >> fail "lexer error"
+      Right r -> return r)
 
 -- Define C language
 langDefC :: Tok.LanguageDef ()
@@ -35,12 +42,12 @@ langDefC = Tok.LanguageDef
 
 reservedCNames :: [String]
 reservedCNames =
-  [ "int", "char", "while", "for", "&&", "||", "!",
+  [ "int", "char", "float", "while", "for", "&&", "||", "!",
     "return", "if", "else", "True", "False", "void"]
 
 reservedCOpNames :: [String]
 reservedCOpNames =
-  [ "+", "-", "*", "/", "=", "!=",
+  [ "+", "-", "*", "/", "=", "!=", "%",
     "<", ">", "&&", "||", "!", "~" ]
 
 lexer :: Tok.GenTokenParser String () Identity
@@ -91,9 +98,9 @@ whileParser :: Parser Stmt
 whileParser = whiteSpace >> statement <* eof
 
 statement :: Parser Stmt
-statement =   braces statement
-          <|> parens statement
-          <|> sequenceOfStmt
+statement = braces statement
+        <|> parens statement
+        <|> sequenceOfStmt
 
 sequenceOfStmt :: Parser Stmt
 sequenceOfStmt = do
@@ -109,6 +116,8 @@ statement'
   <|> try ifStmt
   <|> try whileStmt
   <|> try assignStmt
+  <|> try emptyAssignStmt
+  <|> try assignValue
   <|> try simpleExpr
 
 ifStmt :: Parser Stmt
@@ -128,7 +137,7 @@ simpleExpr = ((Expr . ArExpr <$> aExpression)
 returnStmt :: Parser Stmt
 returnStmt = do
   reserved "return"
-  expr <- simpleExpr <|> (ReturnNull <$ semi)
+  expr <- simpleExpr <|> (Null <$ semi)
   return $ Return expr
 
 whileStmt :: Parser Stmt
@@ -146,10 +155,25 @@ assignStmt = do
   expr <- simpleExpr
   return $ Assign typeOfVar varName expr
 
+emptyAssignStmt :: Parser Stmt
+emptyAssignStmt = do
+  typeOfVar <- typeOfExpr
+  varName <- identifier
+  _ <- semi
+  return $ EmptyAssign typeOfVar varName
+
+assignValue :: Parser Stmt
+assignValue = do
+  varName <- identifier
+  reservedOp "="
+  expr <- simpleExpr
+  return $ ValueAssign varName expr
+
 typeOfExpr :: Parser Type
 typeOfExpr = (symbol "int" >> return INT)
          <|> (symbol "char" >> return CHAR)
          <|> (symbol "void" >> return VOID)
+         <?> "bad type"
 
 funcParam :: Parser FParams
 funcParam = do
@@ -173,11 +197,12 @@ bExpression = buildExpressionParser bOperators bTerm
 
 aOperators :: [[Operator Char () AExpr]]
 aOperators = [ [Prefix (reservedOp "-" >> return  Neg              )          ,
-                Prefix (reservedOp "~" >> return  Complement       )          ]
+                Prefix (reservedOp "~" >> return  Complement       )           ]
              , [Infix  (reservedOp "*" >> return (ABinary Multiply)) AssocLeft,
-                Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft]
+                Infix  (reservedOp "/" >> return (ABinary Divide  )) AssocLeft,
+                Infix  (reservedOp "%" >> return (ABinary Mod     )) AssocLeft ]
              , [Infix  (reservedOp "+" >> return (ABinary Add     )) AssocLeft,
-                Infix  (reservedOp "-" >> return (ABinary Subtract)) AssocLeft] ]
+                Infix  (reservedOp "-" >> return (ABinary Subtract)) AssocLeft ] ]
 
 bOperators :: [[Operator Char () BExpr]]
 bOperators = [ [Prefix (reservedOp "!"  >> return  Not        )           ]
@@ -211,10 +236,3 @@ relation :: ParsecT String () Identity RBinOp
 relation =  (reservedOp ">" >> return Greater)
         <|> (reservedOp "<" >> return Less)
 
-parseFile :: String -> IO Stmt
-parseFile filePath = do
-  withFile filePath ReadMode (\handle -> do
-    program <- hGetContents handle
-    case parse whileParser filePath program of
-      Left e  -> print e >> fail "parse error"
-      Right r -> return r)

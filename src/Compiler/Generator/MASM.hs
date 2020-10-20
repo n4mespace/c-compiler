@@ -1,7 +1,6 @@
 module Compiler.Generator.MASM
-    ( generateMASM
-    )
-where
+  ( generateMASM
+  ) where
 
 import           Compiler.Syntax.Arithmetic
 import           Compiler.Syntax.Boolean
@@ -12,80 +11,106 @@ import           Data.Functor               ((<$>))
 import           Data.Monoid                ((<>))
 
 
-generateMASM :: Stmt -> IO (Either Err String)
-generateMASM p = return $ codeSection p
-
-
-codeSection :: Stmt -> Either Err String
-codeSection program = case emitted of
-  Left e -> Left e
-  Right p -> Right $ p                
-          <> emitNLn "mov b, eax"
+generateMASM :: FilePath -> Stmt -> IO ()
+generateMASM destination program = do
+  case asm of
+    Left e -> print e >> fail "asm gen error"
+    Right generatedASM -> do
+      putStrLn "\n{-# GENERATED .ASM #-}"
+      putStrLn generatedASM
+      destination `writeFile` generatedASM
   where
-    emitted :: Either Err String
-    emitted = emitCode program
+    asm :: Either Err String
+    asm = emitCode program
+
 
 -- Make program capable to generate code to different .asm sections
 class Emittable e where
   emitCode :: e -> Either Err String
 
-
 instance Emittable Stmt where
-  emitCode (Block stmts) = foldl1 (<>) $ emitCode <$> stmts
-  emitCode (Func _ _ _ stmts) = emitCode stmts
-  emitCode (Assign t name stmt) = Left $ BadExpression $ "assign: " <> name
-  emitCode (Return (Expr expr)) = emitCode expr
-  emitCode ReturnNull = Right "ret"
-  emitCode _ = Left $ BadExpression "unknown statement"
+  emitCode (Block stmts)           = emitBlock $ emitCode <$> stmts
+  emitCode (Func _ _ _ stmts)      = emitBlock [ emitLn "push ebp"
+                                               , emitNLn "mov ebp, esp"
+                                               , emitNLn "" 
+                                               , emitCode stmts
+                                               , emitNLn ""
+                                               , emitNLn "mov esp, ebp"
+                                               , emitNLn "pop ebp" 
+                                               , emitNLn "" 
+                                               , emitNLn "mov b, eax" ]
+  emitCode (Assign _ name (Expr expr))    = emitBlock [ emitCode expr
+                                                      , emitNLn $ "mov " <> name <> ", eax" ]
+  emitCode (ValueAssign name (Expr expr)) = emitBlock [ emitCode expr
+                                                      , emitNLn $ "mov " <> name <> ", eax" ]
+  emitCode (EmptyAssign _ _)       = Right ""
+  emitCode (Return Null)           = Right ""
+  emitCode (Return (Expr expr))    = emitCode expr
+  emitCode s                       = Left $ BadExpression $ "unknown statement: " <> show s
 
 instance Emittable Expr where
   emitCode (ArExpr aExpr)   = emitCode aExpr
   emitCode (BoolExpr bExpr) = Left $ BadExpression "unknown expression"
 
 instance Emittable AExpr where
-  emitCode (Neg aExpr) = case emitCode aExpr of
-        Left e -> Left e
-        Right expr -> Right $ expr
-                   <> emitNLn "neg eax"
-  emitCode (Var name) = Left $ BadExpression $ "var: " <> name
-  emitCode (IntConst i) = Right $ emitNLn $ "mov eax, " <> show i
-  emitCode (Complement aExpr) = case emitCode aExpr of
-        Left e -> Left e
-        Right expr -> Right $ expr
-                   <> emitNLn "xor eax, -1" 
+  emitCode (Neg aExpr) = emitCode aExpr
+                    <$*> emitNLn "neg eax"
+  emitCode (Var name) = emitNLn $ "mov eax, " <> name
+  emitCode (IntConst i) = emitNLn $ "mov eax, " <> show i
+  emitCode (Complement aExpr) = emitCode aExpr
+                           <$*> emitNLn "xor eax, -1"
   emitCode (ABinary op aExpr1 aExpr2) =
     case op of
-      Subtract -> case emitCode aExpr2 of
-        Left e -> Left e
-        Right expr2 -> case emitCode aExpr1 of
-          Left e -> Left e
-          Right expr1 -> Right $ expr2
-                      <> pushEax 
-                      <> expr1
-                      <> sub
-      badOp -> Left $ BadExpression $ "unknown operation: " <> show badOp
-
+      Subtract -> emitBinaryFunc sub
+      Add      -> emitBinaryFunc add
+      Mod      -> emitBinaryFunc modulo
+      badOp    -> Left $ BadExpression $ "unknown operation: " <> show badOp
+    where
+      emitBinaryFunc :: Either Err String -> Either Err String
+      emitBinaryFunc f =
+        emitBlock [ emitCode aExpr2
+                  , pushEax
+                  , emitCode aExpr1
+                  , f ]
 
 -- Helpers
-emitLn :: String -> String
-emitLn = ("\t" <>) . (<> "\n")
+emitBlock :: [Either Err String] -> Either Err String
+emitBlock = (concat <$>) . sequence
 
-emitNLn :: String -> String
-emitNLn = ("\n\t" <>) 
+(<$*>) :: Either Err String -> Either Err String -> Either Err String
+expr1 <$*> expr2 = (<>) <$> expr1
+                        <*> expr2
+infixr 6 <$*>
 
-emitLabel :: String -> String
-emitLabel = (<> ":\n")
+emitNLn :: String -> Either Err String
+emitNLn = Right . ("\n\t" <>)
+
+emitLn :: String -> Either Err String
+emitLn = Right . ("\t" <>)
+
+emitLabel :: String -> Either Err String
+emitLabel = Right . (<> ":\n")
 
 -- Basic math functions
-popEbx :: String
+popEbx :: Either Err String
 popEbx = emitNLn "pop ebx"
 
-popEax :: String
+popEax :: Either Err String
 popEax = emitNLn "pop eax"
 
-pushEax :: String
+pushEax :: Either Err String
 pushEax = emitNLn "push eax"
 
-sub :: String
-sub = popEbx 
-   <> emitNLn "sub eax, ebx"
+sub :: Either Err String
+sub = popEbx
+ <$*> emitNLn "sub eax, ebx"
+
+add :: Either Err String
+add = popEbx
+ <$*> emitNLn "add eax, ebx"
+
+modulo :: Either Err String
+modulo = popEbx
+    <$*> emitNLn "xor edx, edx"
+    <$*> emitNLn "div ebx"
+    <$*> emitNLn "mov eax, edx"

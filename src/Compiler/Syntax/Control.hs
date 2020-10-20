@@ -15,7 +15,7 @@ import           Compiler.Syntax.Boolean
 type Name = String
 
 data Type = INT | CHAR | VOID
-  deriving (Show)
+  deriving (Show, Eq)
 
 data FParams = Param Type Name
   deriving (Show)
@@ -28,10 +28,12 @@ data Expr
 data Stmt
   = Block [Stmt]
   | Assign Type Name Stmt
+  | EmptyAssign Type Name
+  | ValueAssign Name Stmt
   | If BExpr Stmt Stmt
   | While BExpr Stmt
   | Func Type Name [FParams] Stmt
   | Expr Expr
   | Return Stmt
-  | ReturnNull
+  | Null
   deriving (Show)

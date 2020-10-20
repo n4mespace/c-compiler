@@ -1,3 +1,6 @@
 int main() {
-    return ~((10 - 2) + (2 - 10));
+    int b = 15 - 3;
+    char a = 'a';
+    a = a + b;
+    return a;
 }
