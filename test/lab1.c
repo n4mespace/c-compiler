@@ -1,10 +1,8 @@
 char main() {
-    int a = 3;
-    {
-        int c = 2 + a;
-        bool flag = false;
-        a = 4;
-
+    bool flag = false;
+    if (flag) {
+        int c = 2;
+        return c;
     }
-    return a;
+    return 3;
 }

@@ -44,13 +44,10 @@ checkGrammar parsedProgram = do
     Right program -> do
       putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pPrint parsedProgram
-      pPrint st
       return program
   where
     checkerProgram :: Either Err StmtT
     checkerProgram = evalStateT (checker parsedProgram) initialState
-   
-    st = execStateT (checker parsedProgram) initialState 
 
     initialState :: GlobalEnv
     initialState = (-1, M.singleton (-1, "") 0)
@@ -152,6 +149,11 @@ checker code = do
       case Unary op <$> exprLookup (currScope, env) expr of
         Left e  -> lift $ Left e
         Right v -> return $ Expr v
+
+    If expr stmt -> If <$> checker expr <*> checker stmt
+
+    IfElse expr stmt1 stmt2 -> 
+      IfElse <$> checker expr <*> checker stmt1 <*> checker stmt2
 
     Return stmt -> Return <$> checker stmt
 

@@ -148,14 +148,14 @@ ifElseStmt = do
   stmt1 <- blockOfStmts
   reserved "else"
   stmt2 <- blockOfStmts
-  return $ IfElse cond stmt1 stmt2
+  return $ IfElse (Expr cond) stmt1 stmt2
 
 ifStmt :: Parser StmtT
 ifStmt = do
   reserved "if"
   cond <- parens expression
   stmt <- blockOfStmts
-  return $ If cond stmt
+  return $ If (Expr cond) stmt
 
 simpleExpr :: Parser StmtT
 simpleExpr = Expr <$> expression <* semi

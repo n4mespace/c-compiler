@@ -30,8 +30,8 @@ data Stmt a
   | Assign a Name (Stmt a)
   | EmptyAssign a Name
   | ValueAssign Name (Stmt a)
-  | If (Expr a) (Stmt a)
-  | IfElse (Expr a) (Stmt a) (Stmt a)
+  | If (Stmt a) (Stmt a)
+  | IfElse (Stmt a) (Stmt a) (Stmt a)
   | Func a Name [FParams a] (Stmt a)
   | Expr (Expr a)
   | Return (Stmt a)
