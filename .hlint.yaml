@@ -11,7 +11,6 @@
 # - ignore: {name: "Redundant void"}
 # - ignore: {name: "Reduce duplication"}
 
-
 # Specify additional command line arguments
 #
 # - arguments: [--color, --cpp-simple, -XQuasiQuotes]

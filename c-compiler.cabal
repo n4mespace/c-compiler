@@ -31,8 +31,7 @@ library
       Compiler.Parser
       Compiler.Generator.MASM
       Compiler.Grammar
-      Compiler.Syntax.Arithmetic
-      Compiler.Syntax.Boolean
+      Compiler.Syntax.Expression
       Compiler.Syntax.Control
       Lib
   other-modules:

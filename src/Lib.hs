@@ -7,6 +7,5 @@ import           Compiler.Grammar        (checkGrammar)
 import           Compiler.Parser
 
 main :: FilePath -> FilePath -> IO ()
-main filePath destination = parseFile filePath 
-                        >>= checkGrammar 
-                        >>= generateMASM destination
+main filePath destination =
+  parseFile filePath >>= checkGrammar >>= generateMASM destination
