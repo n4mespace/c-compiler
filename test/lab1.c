@@ -1,6 +1,10 @@
-int main() {
-    int b = 13 % 2;
+char main() {
     int a = 3;
-    a = a + b;
-    return ~(-a % b);
+    {
+        int c = 2 + a;
+        bool flag = false;
+        a = 4;
+
+    }
+    return a;
 }
