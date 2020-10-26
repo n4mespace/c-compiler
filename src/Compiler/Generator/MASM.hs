@@ -55,7 +55,7 @@ instance Emittable Expr where
 instance Emittable AExpr where
   emitCode (Neg aExpr) = emitCode aExpr
                     <$*> emitNLn "neg eax"
-  emitCode (Var name) = emitNLn $ "mov eax, " <> name
+  emitCode (AVar name) = emitNLn $ "mov eax, " <> name
   emitCode (IntConst i) = emitNLn $ "mov eax, " <> show i
   emitCode (Complement aExpr) = emitCode aExpr
                            <$*> emitNLn "xor eax, -1"

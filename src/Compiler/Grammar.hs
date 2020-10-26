@@ -120,11 +120,11 @@ checker code = do
         Left e -> lift $ Left e
         Right v -> return $ Expr . ArExpr $ v
         
-    Expr (ArExpr (Var varName)) -> do
+    Expr (ArExpr (AVar varName)) -> do
       case M.lookup varName env of
         Nothing -> lift $ Left $ BadExpression $ "unknown var: " <> varName
         Just 0 -> lift $ Left $ BadExpression $ "uninitialized var: " <> varName
-        Just n -> return $ Expr . ArExpr . Var $ constructAddress n
+        Just n -> return $ Expr . ArExpr . AVar $ constructAddress n
 
     Expr (ArExpr (Neg expr)) -> 
       case Neg <$> lookupCheck env expr of
@@ -153,11 +153,11 @@ getMaxFromMap :: Ord v => M.Map k v -> v
 getMaxFromMap m = maximum (snd <$> M.toList m)
 
 lookupCheck :: GlobalEnv -> AExpr -> Either Err AExpr
-lookupCheck env (Var varName) =
+lookupCheck env (AVar varName) =
   case M.lookup varName env of
     Nothing -> Left $ BadExpression $ "unknown var: " <> varName
     Just 0 -> Left $ BadExpression $ "uninitialized var: " <> varName
-    Just n -> Right $ Var $ constructAddress n
+    Just n -> Right $ AVar $ constructAddress n
 lookupCheck env (ABinary op' expr1' expr2') = ABinary op' 
                                           <$> lookupCheck env expr1' 
                                           <*> lookupCheck env expr2'

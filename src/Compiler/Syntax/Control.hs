@@ -1,23 +1,25 @@
 module Compiler.Syntax.Control
-  ( Expr (..)
-  , Stmt (..)
-  , FParams (..)
-  , Type (..)
+  ( Expr(..)
+  , Stmt(..)
+  , FParams(..)
+  , Type(..)
   , Name
-  )
-where
-
+  ) where
 
 import           Compiler.Syntax.Arithmetic
 import           Compiler.Syntax.Boolean
 
-
 type Name = String
 
-data Type = INT | CHAR | VOID
+data Type
+  = INT
+  | CHAR
+  | VOID
+  | BOOL
   deriving (Show, Eq)
 
-data FParams = Param Type Name
+data FParams =
+  Param Type Name
   deriving (Show)
 
 data Expr

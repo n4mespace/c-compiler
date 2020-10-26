@@ -1,25 +1,25 @@
 module Compiler.Syntax.Boolean
-  ( BExpr (..)
-  , RBinOp (..)
-  , BBinOp (..)
-  )
-where
+  ( BExpr(..)
+  , RBinOp(..)
+  , BBinOp(..)
+  ) where
 
 import           Compiler.Syntax.Arithmetic (AExpr)
 
 data BExpr
   = BoolConst Bool
+  | BVar String
   | Not BExpr
   | BBinary BBinOp BExpr BExpr
   | RBinary RBinOp AExpr AExpr
   deriving (Show)
 
-data BBinOp 
-  = And 
-  | Or 
+data BBinOp
+  = And
+  | Or
   deriving (Show)
 
-data RBinOp 
-  = Greater 
-  | Less 
+data RBinOp
+  = Greater
+  | Less
   deriving (Show)

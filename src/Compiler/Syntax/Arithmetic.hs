@@ -1,12 +1,10 @@
 module Compiler.Syntax.Arithmetic
-  ( AExpr (..)
-  , ABinOp (..)
-  )
-where
-
+  ( AExpr(..)
+  , ABinOp(..)
+  ) where
 
 data AExpr
-  = Var String
+  = AVar String
   | IntConst Integer
   | Neg AExpr
   | Complement AExpr

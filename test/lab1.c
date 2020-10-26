@@ -1,6 +1,5 @@
 int main() {
-    int b = 15 - 3;
-    char a = 'a';
-    a = a + b;
+    int a = 3;
+    bool b = true;
     return a;
 }
