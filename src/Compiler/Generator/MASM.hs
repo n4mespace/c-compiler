@@ -1,7 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Compiler.Generator.MASM
-  ( generateMASM
+  ( generateFile
+  , generateString
   ) where
 
 import           Compiler.Grammar           (Err (..))
@@ -13,14 +14,20 @@ import           Data.Monoid                ((<>))
 import           System.Random              (newStdGen, randomRs, StdGen)
 import           System.IO.Unsafe           (unsafePerformIO)
 
-generateMASM :: FilePath -> StmtT -> IO ()
-generateMASM destination program = do
+generateFile :: FilePath -> StmtT -> IO ()
+generateFile destination program = do
   case emit program of
-    Right generatedASM -> do
+    Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
-      putStrLn generatedASM
-      destination `writeFile` generatedASM
+      putStrLn asm
+      destination `writeFile` asm
     Left e -> print e >> fail "asm gen error"
+
+generateString :: StmtT -> IO String
+generateString program =
+  case emit program of
+    Right asm -> return asm
+    Left e -> fail "asm gen error"
 
 -- | Make program capable to generate asm code
 class Emittable p where

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Compiler.Syntax.Expression
   ( Expr(..)
   , BinOp(..)
@@ -12,7 +10,7 @@ data Expr a
   | Const C
   | Binary BinOp (Expr a) (Expr a)
   | Unary UnOp (Expr a)
-  deriving (Show, Functor)
+  deriving (Show)
 
 data C
   = INT Integer

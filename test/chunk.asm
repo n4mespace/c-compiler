@@ -11,12 +11,12 @@
 	mov eax, dword ptr [ebp + 4]
 	
 	cmp eax, 0
-	je __ssdgab_if
+	je __buqkzq_if
 	
 	mov eax, 4
 	mov dword ptr [ebp + 4], eax
 	
-__ssdgab_if:
+__buqkzq_if:
 	mov eax, dword ptr [ebp + 4]
 	jmp __ret
 	

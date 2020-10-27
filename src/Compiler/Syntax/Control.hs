@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Compiler.Syntax.Control
   ( Expr(..)
   , Stmt(..)
@@ -23,7 +21,7 @@ data Type
 
 data FParams a =
   Param a Name
-  deriving (Show, Functor)
+  deriving (Show)
 
 data Stmt a
   = Block [Stmt a]
@@ -36,7 +34,7 @@ data Stmt a
   | Expr (Expr a)
   | Return (Stmt a)
   | Null
-  deriving (Show, Functor)
+  deriving (Show)
 
 type StmtT = Stmt Type
 

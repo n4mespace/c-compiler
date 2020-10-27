@@ -6,6 +6,7 @@ module Compiler.Grammar
 import           Compiler.Syntax.Control        (ExprT, Name, Stmt (..), StmtT,
                                                  Type (..))
 import           Compiler.Syntax.Expression
+
 import           Control.Monad.Trans.Class      (lift)
 import           Control.Monad.Trans.State.Lazy
 import qualified Data.Map.Strict                as M

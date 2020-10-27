@@ -1,4 +1,7 @@
-module Compiler.Parser where
+module Compiler.Parser 
+  ( parseFile
+  , parseString
+  ) where
 
 import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
@@ -10,18 +13,23 @@ import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Expr
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
-parseFile :: String -> IO StmtT
+parseFile :: FilePath -> IO StmtT
 parseFile filePath = do
   withFile
     filePath
     ReadMode
     (\handle -> do
-       program <- hGetContents handle
-       case parse whileParser filePath program of
-         Left e  -> print e >> fail "lexer error"
-         Right r -> return r)
+      program <- hGetContents handle
+      case parse whileParser filePath program of
+        Left e  -> print e >> fail "lexer error"
+        Right r -> return r)
 
--- | Define C language
+parseString :: String -> IO StmtT
+parseString program =
+  case parse whileParser "" program of
+    Left e  -> fail "lexer error"
+    Right r -> return r
+
 langDefC :: Tok.LanguageDef ()
 langDefC =
   Tok.LanguageDef
