@@ -1,8 +1,9 @@
-char main() {
-    bool flag = false;
-    if (flag) {
-        int c = 2;
-        return c;
+int main() {
+    bool flag = true;
+    int a = 4;
+    if (flag) {
+        return a > 2;
+    } else {
+        return a < 2;
     }
-    return 3;
 }

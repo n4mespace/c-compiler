@@ -41,10 +41,10 @@ checkGrammar :: StmtT -> IO StmtT
 checkGrammar parsedProgram = do
   case checkerProgram of
     Left e -> print e >> fail "parser error"
-    Right program -> do
+    Right checkedProgram -> do
       putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pPrint parsedProgram
-      return program
+      return checkedProgram
   where
     checkerProgram :: Either Err StmtT
     checkerProgram = evalStateT (checker parsedProgram) initialState

@@ -10,6 +10,8 @@ import           Compiler.Syntax.Expression
 
 import           Data.Functor               ((<$>))
 import           Data.Monoid                ((<>))
+import           System.Random              (newStdGen, randomRs, StdGen)
+import           System.IO.Unsafe           (unsafePerformIO)
 
 generateMASM :: FilePath -> StmtT -> IO ()
 generateMASM destination program = do
@@ -30,12 +32,13 @@ instance Emittable StmtT where
     emitBlock
       [ emitLn "push ebp"
       , emitNLn "mov ebp, esp"
-      , emitNLn ""
+      , nLine
       , emit stmts
-      , emitNLn ""
+      , nLine
+      , emitLbl "__ret"
       , emitNLn "mov esp, ebp"
       , emitNLn "pop ebp"
-      , emitNLn ""
+      , nLine
       , emitNLn "mov b, eax"
       ]
   emit (Assign _ name (Expr expr)) =
@@ -43,8 +46,43 @@ instance Emittable StmtT where
   emit (ValueAssign name (Expr expr)) =
     emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
   emit (EmptyAssign _ _) = Right ""
-  emit (Return Null) = Right ""
-  emit (Return (Expr expr)) = emit expr
+  emit (Return Null) = goToReturn
+  emit (Return (Expr expr)) = emit expr 
+                         <$*> goToReturn
+  emit (If (Expr cond) stmt) =
+    emitBlock 
+      [ nLine
+      , emit cond
+      , nLine
+      , goToIf randomLbl
+      , nLine
+      , emit stmt
+      , nLine
+      , emitLbl randomLbl
+      ]
+    where
+      randomLbl :: String
+      randomLbl = getRandomLbl newStdGen
+  
+  emit (IfElse (Expr cond) stmt1 stmt2) =
+    emitBlock
+      [ nLine
+      , emit cond
+      , goToIfElse randomLbl randomLbl'
+      , nLine
+      , emitLbl randomLbl
+      , emit stmt1
+      , nLine
+      , emitLbl randomLbl'
+      , emit stmt2
+      ]
+    where
+      randomLbl :: String
+      randomLbl = getRandomLbl newStdGen
+
+      randomLbl' :: String
+      randomLbl' = getRandomLbl newStdGen
+  
   emit s = Left $ BadExpression $ "unknown statement: " <> show s
 
 instance Emittable ExprT where
@@ -57,13 +95,23 @@ instance Emittable ExprT where
       Complement -> emit expr <$*> emitNLn "xor eax, -1"
   emit (Binary op expr1 expr2) =
     case op of
-      Subtract -> emitBinary sub
-      Add      -> emitBinary add
-      Mod      -> emitBinary modulo
+      Subtract -> emitBinary subOp
+      Add      -> emitBinary addOp
+      Mod      -> emitBinary modOp
+      And      -> emitBinary andOp
+      Or       -> emitBinary orOp
+      Greater  -> emitBinary greaterOp
+      Less     -> emitBinary lessOp
       badOp    -> Left $ BadExpression $ "unknown operation: " <> show badOp
     where
       emitBinary :: Either Err String -> Either Err String
-      emitBinary f = emitBlock [emit expr2, pushEax, emit expr1, f]
+      emitBinary f = emitBlock 
+        [ emit expr2
+        , pushEax
+        , emit expr1
+        , popEbx
+        , f
+        ]
 
 instance Emittable C where
   emit (INT i) = Right $ show i
@@ -79,32 +127,68 @@ emitBlock = (concat <$>) . sequence
 
 (<$*>) :: Either Err String -> Either Err String -> Either Err String
 expr1 <$*> expr2 = (<>) <$> expr1 <*> expr2
-
 infixr 6 <$*>
 
 emitNLn :: String -> Either Err String
 emitNLn = Right . ("\n\t" <>)
 
+nLine :: Either Err String
+nLine = emitNLn ""
+
 emitLn :: String -> Either Err String
 emitLn = Right . ("\t" <>)
 
-emitLabel :: String -> Either Err String
-emitLabel = Right . (<> ":\n")
+emitLbl :: String -> Either Err String
+emitLbl = Right . ("\n" <>) . (<> ":")
 
--- Basic math functions
 popEbx :: Either Err String
 popEbx = emitNLn "pop ebx"
 
 pushEax :: Either Err String
 pushEax = emitNLn "push eax"
 
-sub :: Either Err String
-sub = popEbx <$*> emitNLn "sub eax, ebx"
+-- Basic math functions
+subOp :: Either Err String
+subOp = emitNLn "sub eax, ebx"
 
-add :: Either Err String
-add = popEbx <$*> emitNLn "add eax, ebx"
+addOp :: Either Err String
+addOp = emitNLn "add eax, ebx"
 
-modulo :: Either Err String
-modulo =
-  popEbx <$*>
-  emitNLn "xor edx, edx" <$*> emitNLn "div ebx" <$*> emitNLn "mov eax, edx"
+modOp :: Either Err String
+modOp =
+  emitNLn "xor edx, edx" <$*> 
+  emitNLn "div ebx" <$*> 
+  emitNLn "mov eax, edx"
+
+andOp :: Either Err String
+andOp = emitNLn "and eax, ebx"
+
+orOp :: Either Err String
+orOp = emitNLn "or eax, ebx"
+
+greaterOp :: Either Err String
+greaterOp = 
+  emitNLn "cmp eax, ebx" <$*>
+  emitNLn "setg al"
+
+lessOp :: Either Err String
+lessOp = 
+  emitNLn "cmp eax, ebx" <$*>
+  emitNLn "setl al"
+
+-- Work with control flow
+goToIfElse :: String -> String -> Either Err String
+goToIfElse lbl lbl' = emitNLn "cmp eax, 0"
+                 <$*> emitNLn ("jne " <> lbl)
+                 <$*> emitNLn ("je " <> lbl')
+
+goToIf :: String -> Either Err String
+goToIf lbl = emitNLn "cmp eax, 0"
+        <$*> emitNLn ("je " <> lbl)
+
+goToReturn :: Either Err String
+goToReturn = emitNLn "jmp __ret"
+
+getRandomLbl :: IO StdGen -> String
+getRandomLbl gen = 
+  "__" <> take 8 (randomRs ('a','z') $ unsafePerformIO gen)

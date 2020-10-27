@@ -45,8 +45,8 @@ reservedCNames =
   , "bool"
   , "while"
   , "for"
-  , "&&"
-  , "||"
+  , "&"
+  , "|"
   , "!"
   , "return"
   , "if"
@@ -189,9 +189,9 @@ assignValue = do
 
 typeOfExpr :: Parser Type
 typeOfExpr =
-  (symbol "int" >> return INT_T) <|> 
-  (symbol "char" >> return CHAR_T) <|>
-  (symbol "bool" >> return BOOL_T) <?> "bad type"
+  (reserved "int" >> return INT_T) <|> 
+  (reserved "char" >> return CHAR_T) <|>
+  (reserved "bool" >> return BOOL_T) <?> "bad type"
 
 funcParam :: Parser FParamsT
 funcParam = do
@@ -216,10 +216,10 @@ operators =
     , Prefix (reservedOp "~" >> return (Unary Complement))
     , Prefix (reservedOp "!" >> return (Unary Not))
     ]
-  , [ Infix (reservedOp "&&" >> return (Binary And)) AssocLeft
-    , Infix (reservedOp "||" >> return (Binary Or)) AssocLeft
+  , [ Infix (reservedOp "&" >> return (Binary And)) AssocLeft
+    , Infix (reservedOp "|" >> return (Binary Or)) AssocLeft
     , Infix (reservedOp "*" >> return (Binary Multiply)) AssocLeft
-    , Infix (reservedOp "/" >> return (Binary Divide)) AssocLeft
+    -- , Infix (reservedOp "/" >> return (Binary Divide)) AssocLeft
     , Infix (reservedOp "%" >> return (Binary Mod)) AssocLeft
     ]
   , [ Infix (reservedOp "+" >> return (Binary Add)) AssocLeft
