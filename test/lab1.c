@@ -1,9 +1,13 @@
 int main() {
-    bool flag = true;
-    int a = 4;
-    if (flag) {
-        return a > 2;
-    } else {
-        return a < 2;
+    int a = 1;
+    {
+        a = 2;
+        {
+            a = 3;
+            if (a) {
+                a = 4;
+            }
+            return a;
+        }
     }
 }

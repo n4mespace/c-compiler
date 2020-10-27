@@ -30,6 +30,7 @@ data BinOp
   | Or
   | Greater
   | Less
+  | Equal
   deriving (Show)
 
 data UnOp

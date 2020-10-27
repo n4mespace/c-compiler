@@ -58,7 +58,7 @@ reservedCNames =
 
 reservedCOpNames :: [String]
 reservedCOpNames =
-  ["+", "-", "*", "/", "=", "!=", "%", "<", ">", "&&", "||", "!", "~"]
+  ["+", "-", "*", "/", "=", "!=", "%", "<", ">", "==", "&", "|", "!", "~"]
 
 lexer :: Tok.GenTokenParser String () Identity
 lexer = Tok.makeTokenParser langDefC
@@ -215,6 +215,7 @@ operators =
   [ [ Prefix (reservedOp "-" >> return (Unary Neg))
     , Prefix (reservedOp "~" >> return (Unary Complement))
     , Prefix (reservedOp "!" >> return (Unary Not))
+    , Infix (reservedOp "==" >> return (Binary Equal)) AssocLeft
     ]
   , [ Infix (reservedOp "&" >> return (Binary And)) AssocLeft
     , Infix (reservedOp "|" >> return (Binary Or)) AssocLeft
