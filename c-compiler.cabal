@@ -42,7 +42,6 @@ library
       base >=4.7 && <5
     , parsec
     , pretty-simple
-    , text
     , containers
     , transformers
     , random
@@ -59,7 +58,6 @@ executable c-compiler
       base >=4.7 && <5
     , parsec
     , pretty-simple
-    , text
     , c-compiler
     , containers
     , random
@@ -78,10 +76,10 @@ test-suite c-compiler-tests
       base >=4.7 && <5
     , parsec
     , pretty-simple
-    , text
     , c-compiler
     , containers
     , random
     , transformers
     , hspec
+    , heredoc
   default-language: Haskell2010

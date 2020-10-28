@@ -1,13 +1,13 @@
 int main() {
-    int a = 1;
-    {
-        a = 2;
+    bool flag = false;
+    int cnt = 100;
+    if (!flag) {
+        int b = 13;
         {
-            a = 3;
-            if (a) {
-                a = 4;
-            }
-            return a;
+          int c = 2 * b;
         }
+        return b; 
+    } else {
+        return cnt / 4;
     }
 }

@@ -15,19 +15,16 @@ import qualified Text.ParserCombinators.Parsec.Token as Tok
 
 parseFile :: FilePath -> IO StmtT
 parseFile filePath = do
-  withFile
-    filePath
-    ReadMode
-    (\handle -> do
-      program <- hGetContents handle
-      case parse whileParser filePath program of
-        Left e  -> print e >> fail "lexer error"
-        Right r -> return r)
+  withFile filePath ReadMode $ \handle -> do
+    program <- hGetContents handle
+    parseString program
 
 parseString :: String -> IO StmtT
-parseString program =
-  case parse whileParser "" program of
-    Left e  -> fail "lexer error"
+parseString program = do
+  putStrLn "\n{-# SOURCE PROGRAM #-}"
+  putStrLn program
+  case parse mainParser "" program of
+    Left e  -> print e >> fail "lexer error"
     Right r -> return r
 
 langDefC :: Tok.LanguageDef ()
@@ -123,8 +120,8 @@ binaryInteger =
     binToDec i = 2 * binToDec (div i 10) + mod i 10
 
 -- | Parse code inside EOFs
-whileParser :: Parser StmtT
-whileParser = whiteSpace >> statements <* eof
+mainParser :: Parser StmtT
+mainParser = whiteSpace >> statements <* eof
 
 statements :: Parser StmtT
 statements = do
@@ -228,7 +225,7 @@ operators =
   , [ Infix (reservedOp "&" >> return (Binary And)) AssocLeft
     , Infix (reservedOp "|" >> return (Binary Or)) AssocLeft
     , Infix (reservedOp "*" >> return (Binary Multiply)) AssocLeft
-    -- , Infix (reservedOp "/" >> return (Binary Divide)) AssocLeft
+    , Infix (reservedOp "/" >> return (Binary Divide)) AssocLeft
     , Infix (reservedOp "%" >> return (Binary Mod)) AssocLeft
     ]
   , [ Infix (reservedOp "+" >> return (Binary Add)) AssocLeft

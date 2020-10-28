@@ -11,8 +11,8 @@ import           Compiler.Syntax.Expression
 
 import           Data.Functor               ((<$>))
 import           Data.Monoid                ((<>))
-import           System.Random              (newStdGen, randomRs, StdGen)
 import           System.IO.Unsafe           (unsafePerformIO)
+import           System.Random              (StdGen, newStdGen, randomRs)
 
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program = do
@@ -26,7 +26,10 @@ generateFile destination program = do
 generateString :: StmtT -> IO String
 generateString program =
   case emit program of
-    Right asm -> return asm
+    Right asm -> do
+      putStrLn "\n{-# GENERATED .ASM #-}"
+      putStrLn asm
+      return asm
     Left e -> fail "asm gen error"
 
 -- | Make program capable to generate asm code
@@ -54,10 +57,10 @@ instance Emittable StmtT where
     emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
   emit (EmptyAssign _ _) = Right ""
   emit (Return Null) = goToReturn
-  emit (Return (Expr expr)) = emit expr 
+  emit (Return (Expr expr)) = emit expr
                          <$*> goToReturn
   emit (If (Expr cond) stmt) =
-    emitBlock 
+    emitBlock
       [ nLine
       , emit cond
       , nLine
@@ -70,7 +73,7 @@ instance Emittable StmtT where
     where
       randomLbl :: String
       randomLbl = (<> "_if") $ getRandomLbl newStdGen
-  
+
   emit (IfElse (Expr cond) stmt1 stmt2) =
     emitBlock
       [ nLine
@@ -89,8 +92,10 @@ instance Emittable StmtT where
 
       randomLbl' :: String
       randomLbl' = (<> "_else") $ getRandomLbl newStdGen
-  
-  emit s = Left $ BadExpression $ "unknown statement: " <> show s
+
+  emit (Expr expr) = emit expr
+
+  emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
@@ -99,7 +104,7 @@ instance Emittable ExprT where
     case op of
       Neg        -> emit expr <$*> emitNLn "neg eax"
       Complement -> emit expr <$*> emitNLn "xor eax, -1"
-      Not        -> 
+      Not        ->
         emitBlock
           [ emit expr
           , emitNLn "cmp eax, 0"
@@ -119,7 +124,7 @@ instance Emittable ExprT where
       Equal    -> emitBinary eqOp
     where
       emitBinary :: Either Err String -> Either Err String
-      emitBinary f = emitBlock 
+      emitBinary f = emitBlock
         [ emit expr2
         , pushEax
         , emit expr1
@@ -182,7 +187,7 @@ mulOp = emitNLn "imul ebx"
 divOp :: Either Err String
 divOp =
   emitNLn "cdq" <$*>
-  emitLn "idiv ebx"
+  emitNLn "idiv ebx"
 
 andOp :: Either Err String
 andOp = emitNLn "and eax, ebx"
@@ -191,23 +196,23 @@ orOp :: Either Err String
 orOp = emitNLn "or eax, ebx"
 
 eqOp :: Either Err String
-eqOp = 
+eqOp =
   emitNLn "cmp eax, ebx" <$*>
   emitNLn "sete al"
 
 greaterOp :: Either Err String
-greaterOp = 
+greaterOp =
   emitNLn "cmp eax, ebx" <$*>
   emitNLn "setg al"
 
 lessOp :: Either Err String
-lessOp = 
+lessOp =
   emitNLn "cmp eax, ebx" <$*>
   emitNLn "setl al"
 
 -- Work with control flow
 goToIfElse :: String -> String -> Either Err String
-goToIfElse lbl lbl' = 
+goToIfElse lbl lbl' =
   emitBlock
     [ emitNLn "cmp eax, 0"
     , emitNLn ("jne " <> lbl)
@@ -215,13 +220,13 @@ goToIfElse lbl lbl' =
     ]
 
 goToIf :: String -> Either Err String
-goToIf lbl = 
-  emitNLn "cmp eax, 0" <$*> 
+goToIf lbl =
+  emitNLn "cmp eax, 0" <$*>
   emitNLn ("je " <> lbl)
 
 goToReturn :: Either Err String
 goToReturn = emitNLn "jmp __ret"
 
 getRandomLbl :: IO StdGen -> String
-getRandomLbl gen = 
+getRandomLbl gen =
   "__" <> take 6 (randomRs ('a','z') $ unsafePerformIO gen)

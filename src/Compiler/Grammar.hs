@@ -80,11 +80,10 @@ checker code = do
         funcJust :: EbpOffset -> GlobalState
         funcJust _ = do
           (updatedScope, _) <- get
-          if updatedScope <= currScope
-            then
-              funcNothing ebpOffset
-            else
-              lift $ Left $ BadExpression $ "already declared var: " <> aName
+          if updatedScope < currScope
+            then funcNothing ebpOffset
+            else lift $ Left $ 
+                 BadExpression $ "already declared var: " <> aName
 
         ebpOffset :: EbpOffset
         ebpOffset = getMaxFromMap env + 4
