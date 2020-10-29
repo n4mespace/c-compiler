@@ -1,13 +1,9 @@
 int main() {
-    bool flag = false;
-    int cnt = 100;
-    if (!flag) {
-        int b = 13;
-        {
-          int c = 2 * b;
-        }
-        return b; 
+    int b = 0;
+    if (true) {
+        b = b + 13;
     } else {
-        return cnt / 4;
+        b = b + 2;
     }
+    return b;
 }

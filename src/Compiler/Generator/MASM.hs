@@ -9,8 +9,6 @@ import           Compiler.Grammar           (Err (..))
 import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
 
-import           Data.Functor               ((<$>))
-import           Data.Monoid                ((<>))
 import           System.IO.Unsafe           (unsafePerformIO)
 import           System.Random              (StdGen, newStdGen, randomRs)
 
@@ -30,7 +28,7 @@ generateString program =
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       return asm
-    Left e -> fail "asm gen error"
+    Left e -> print e >> fail "asm gen error"
 
 -- | Make program capable to generate asm code
 class Emittable p where
@@ -64,34 +62,40 @@ instance Emittable StmtT where
       [ nLine
       , emit cond
       , nLine
-      , goToIf randomLbl
+      , goToIf endLbl
       , nLine
       , emit stmt
       , nLine
-      , emitLbl randomLbl
+      , emitLbl endLbl
       ]
     where
-      randomLbl :: String
-      randomLbl = (<> "_if") $ getRandomLbl newStdGen
+      endLbl :: String
+      endLbl = (<> "_endif") $ getRandomLbl newStdGen
 
   emit (IfElse (Expr cond) stmt1 stmt2) =
     emitBlock
       [ nLine
       , emit cond
-      , goToIfElse randomLbl randomLbl'
+      , goToIfElse ifLbl elseLbl
       , nLine
-      , emitLbl randomLbl
+      , emitLbl ifLbl
       , emit stmt1
+      , goTo endLbl
       , nLine
-      , emitLbl randomLbl'
+      , emitLbl elseLbl
       , emit stmt2
+      , nLine
+      , emitLbl endLbl
       ]
     where
-      randomLbl :: String
-      randomLbl = (<> "_if") $ getRandomLbl newStdGen
+      ifLbl :: String
+      ifLbl = (<> "_if") $ getRandomLbl newStdGen
 
-      randomLbl' :: String
-      randomLbl' = (<> "_else") $ getRandomLbl newStdGen
+      elseLbl :: String
+      elseLbl = (<> "_else") $ getRandomLbl newStdGen
+
+      endLbl :: String
+      endLbl = (<> "_endif") $ getRandomLbl newStdGen
 
   emit (Expr expr) = emit expr
 
@@ -224,8 +228,11 @@ goToIf lbl =
   emitNLn "cmp eax, 0" <$*>
   emitNLn ("je " <> lbl)
 
+goTo :: String -> Either Err String
+goTo = emitNLn . ("jmp" <>)
+
 goToReturn :: Either Err String
-goToReturn = emitNLn "jmp __ret"
+goToReturn = goTo "__ret"
 
 getRandomLbl :: IO StdGen -> String
 getRandomLbl gen =

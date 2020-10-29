@@ -3,36 +3,32 @@
 	
 	mov eax, 0
 	mov dword ptr [ebp + 4], eax
-	mov eax, 100
-	mov dword ptr [ebp + 8], eax
 	
-	mov eax, dword ptr [ebp + 4]
+	mov eax, 1
 	cmp eax, 0
-	sete al
-	cmp eax, 0
-	jne __tdpcdw_if
-	je __pkqtpn_else
+	jne __qcxpry_if
+	je __votnqv_else
 	
-__tdpcdw_if:
+__qcxpry_if:
 	mov eax, 13
-	mov dword ptr [ebp + 12], eax
-	mov eax, dword ptr [ebp + 12]
 	push eax
-	mov eax, 2
+	mov eax, dword ptr [ebp + 4]
 	pop ebx
-	imul ebx
-	mov dword ptr [ebp + 16], eax
-	mov eax, dword ptr [ebp + 12]
-	jmp __ret
+	add eax, ebx
+	mov dword ptr [ebp + 4], eax
+	jmp__ellxki_endif
 	
-__pkqtpn_else:
-	mov eax, 4
+__votnqv_else:
+	mov eax, 2
 	push eax
-	mov eax, dword ptr [ebp + 8]
+	mov eax, dword ptr [ebp + 4]
 	pop ebx
-	cdq
-	idiv ebx
-	jmp __ret
+	add eax, ebx
+	mov dword ptr [ebp + 4], eax
+	
+__ellxki_endif:
+	mov eax, dword ptr [ebp + 4]
+	jmp__ret
 	
 __ret:
 	mov esp, ebp
