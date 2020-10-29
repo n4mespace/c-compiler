@@ -1,39 +1,22 @@
-module Compiler.Syntax.Control
-  ( Expr (..)
-  , Stmt (..)
-  , FParams (..)
-  , Type (..)
-  , Name
-  )
-where
+module Compiler.Syntax.Control where
 
-
-import           Compiler.Syntax.Arithmetic
-import           Compiler.Syntax.Boolean
-
+import           Compiler.Syntax.Expression
 
 type Name = String
 
-data Type = INT | CHAR | VOID
-  deriving (Show, Eq)
-
-data FParams = Param Type Name
+data FParams a =
+  Param a Name
   deriving (Show)
 
-data Expr
-  = ArExpr AExpr
-  | BoolExpr BExpr
-  deriving (Show)
-
-data Stmt
-  = Block [Stmt]
-  | Assign Type Name Stmt
-  | EmptyAssign Type Name
-  | ValueAssign Name Stmt
-  | If BExpr Stmt Stmt
-  | While BExpr Stmt
-  | Func Type Name [FParams] Stmt
-  | Expr Expr
-  | Return Stmt
+data Stmt a
+  = Block [Stmt a]
+  | Assign a Name (Stmt a)
+  | EmptyAssign a Name
+  | ValueAssign Name (Stmt a)
+  | If (Stmt a) (Stmt a)
+  | IfElse (Stmt a) (Stmt a) (Stmt a)
+  | Func a Name [FParams a] (Stmt a)
+  | Expr (Expr a)
+  | Return (Stmt a)
   | Null
   deriving (Show)

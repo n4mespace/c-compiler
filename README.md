@@ -10,15 +10,15 @@
 ## To build with cabal
 
 ``` bash
->> cabal install
 >> cabal build
+>> cabal install
 ```
 ## and run your exe in /dist/build
 
 ## To test generated masm32:
-- create file lab1.txt with C code
-- execute program and get  
-- fill this cpp template
+- create file test.c with C code
+- execute program and get chunk.asm
+- fill it in this cpp template
 
 ```c++
 #include <iostream>
