@@ -1,9 +1,4 @@
-module Compiler.Syntax.Expression
-  ( Expr(..)
-  , BinOp(..)
-  , UnOp(..)
-  , C(..)
-  ) where
+module Compiler.Syntax.Expression where
 
 data Expr a
   = Var String

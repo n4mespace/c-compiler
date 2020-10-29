@@ -1,32 +1,15 @@
-module Compiler.Parser 
-  ( parseFile
-  , parseString
-  ) where
+module Compiler.Lexer.LanguageDefinition where
 
-import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
+import           Compiler.Types
 
 import           Data.Functor.Identity               (Identity)
-import           System.IO
 import           Text.Parsec.Prim                    (ParsecT)
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Expr
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
-parseFile :: FilePath -> IO StmtT
-parseFile filePath = do
-  withFile filePath ReadMode $ \handle -> do
-    program <- hGetContents handle
-    parseString program
-
-parseString :: String -> IO StmtT
-parseString program = do
-  putStrLn "\n{-# SOURCE PROGRAM #-}"
-  putStrLn program
-  case parse mainParser "" program of
-    Left e  -> print e >> fail "lexer error"
-    Right r -> return r
-
+-- C language definition
 langDefC :: Tok.LanguageDef ()
 langDefC =
   Tok.LanguageDef
@@ -108,6 +91,10 @@ symbol = Tok.symbol lexer
 commaSep :: ParsecT String () Identity a -> ParsecT String () Identity [a]
 commaSep = Tok.commaSep lexer
 
+-- | Parse single char inside single quots
+singleChar :: Parser Char
+singleChar = between (symbol "\'") (symbol "\'") anyChar
+
 -- | parse binary integers "0b11" -> 3
 binaryInteger :: ParsecT String () Identity Integer
 binaryInteger =
@@ -119,102 +106,11 @@ binaryInteger =
     binToDec 0 = 0
     binToDec i = 2 * binToDec (div i 10) + mod i 10
 
--- | Parse code inside EOFs
-mainParser :: Parser StmtT
-mainParser = whiteSpace >> statements <* eof
-
-statements :: Parser StmtT
-statements = do
-  list <- many statement'
-  return $
-    case length list of
-      0 -> error "Empty block of code"
-      _ -> Block list
-
-statement' :: Parser StmtT
-statement' =
-  try funcStmt <|> 
-  try returnStmt <|> 
-  try ifElseStmt <|> 
-  try ifStmt <|>
-  try assignStmt <|>
-  try emptyAssignStmt <|>
-  try assignValue <|>
-  try simpleExpr <|>
-  try blockOfStmts
-
-blockOfStmts :: ParsecT String () Identity StmtT
-blockOfStmts = braces statements
-
-ifElseStmt :: Parser StmtT
-ifElseStmt = do
-  reserved "if"
-  cond <- parens expression
-  stmt1 <- blockOfStmts
-  reserved "else"
-  stmt2 <- blockOfStmts
-  return $ IfElse (Expr cond) stmt1 stmt2
-
-ifStmt :: Parser StmtT
-ifStmt = do
-  reserved "if"
-  cond <- parens expression
-  stmt <- blockOfStmts
-  return $ If (Expr cond) stmt
-
-simpleExpr :: Parser StmtT
-simpleExpr = Expr <$> expression <* semi
-
-returnStmt :: Parser StmtT
-returnStmt = do
-  reserved "return"
-  expr <- simpleExpr <|> (Null <$ semi)
-  return $ Return expr
-
-assignStmt :: Parser StmtT
-assignStmt = do
-  typeOfVar <- typeOfExpr
-  varName <- identifier
-  reservedOp "="
-  expr <- simpleExpr
-  return $ Assign typeOfVar varName expr
-
-emptyAssignStmt :: Parser StmtT
-emptyAssignStmt = do
-  typeOfVar <- typeOfExpr
-  varName <- identifier <* semi
-  return $ EmptyAssign typeOfVar varName
-
-assignValue :: Parser StmtT
-assignValue = do
-  varName <- identifier
-  reservedOp "="
-  expr <- simpleExpr
-  return $ ValueAssign varName expr
-
-typeOfExpr :: Parser Type
-typeOfExpr =
-  (reserved "int" >> return INT_T) <|> 
-  (reserved "char" >> return CHAR_T) <|>
-  (reserved "bool" >> return BOOL_T) <?> "bad type"
-
-funcParam :: Parser FParamsT
-funcParam = do
-  typeOfP <- typeOfExpr
-  name <- identifier
-  return $ Param typeOfP name
-
-funcStmt :: Parser StmtT
-funcStmt = do
-  typeOfF <- typeOfExpr
-  name <- identifier
-  params <- parens (commaSep funcParam) <|> return []
-  body <- blockOfStmts
-  return $ Func typeOfF name params body
-
+-- | Match operators and terms into expression
 expression :: Parser ExprT
 expression = buildExpressionParser operators terms
 
+-- | Operator table
 operators :: [[Operator Char () ExprT]]
 operators =
   [ [ Prefix (reservedOp "-" >> return (Unary Neg))
@@ -235,13 +131,10 @@ operators =
     ]
   ]
 
--- | Parse single char inside single quots
-singleChar :: Parser Char
-singleChar = between (symbol "\'") (symbol "\'") anyChar
-
+-- | Terms parser
 terms :: ParsecT String () Identity ExprT
 terms =
-  parens expression <|> 
+  parens expression <|>
   try (Var <$> identifier) <|>
   try (Const . INT <$> binaryInteger) <|>
   try (Const . INT <$> integer) <|>

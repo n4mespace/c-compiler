@@ -1,23 +1,8 @@
-module Compiler.Syntax.Control
-  ( Expr(..)
-  , Stmt(..)
-  , FParams(..)
-  , Type(..)
-  , Name
-  , StmtT
-  , FParamsT
-  , ExprT
-  ) where
+module Compiler.Syntax.Control where
 
 import           Compiler.Syntax.Expression
 
 type Name = String
-
-data Type
-  = INT_T
-  | CHAR_T
-  | BOOL_T
-  deriving (Show, Eq)
 
 data FParams a =
   Param a Name
@@ -35,9 +20,3 @@ data Stmt a
   | Return (Stmt a)
   | Null
   deriving (Show)
-
-type StmtT = Stmt Type
-
-type ExprT = Expr Type
-
-type FParamsT = FParams Type

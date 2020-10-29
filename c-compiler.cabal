@@ -28,12 +28,18 @@ source-repository head
 
 library
   exposed-modules:
-      Compiler.Parser
+      Lib
+      Compiler.Types
+      Compiler.Lexer.Parse
+      Compiler.Lexer.Items
+      Compiler.Lexer.LanguageDefinition
+      Compiler.Parser.Grammar
+      Compiler.Parser.Checkers
       Compiler.Generator.MASM
-      Compiler.Grammar
+      Compiler.Generator.Emiters
       Compiler.Syntax.Expression
       Compiler.Syntax.Control
-      Lib
+      Compiler.Syntax.Error
   other-modules:
       Paths_c_compiler
   hs-source-dirs:

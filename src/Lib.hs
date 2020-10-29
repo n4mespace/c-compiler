@@ -4,14 +4,14 @@ module Lib
   ) where
 
 import           Compiler.Generator.MASM (generateFile, generateString)
-import           Compiler.Grammar        (checkGrammar)
-import           Compiler.Parser         (parseFile, parseString)
+import           Compiler.Lexer.Parse    (parseFile, parseString)
+import           Compiler.Parser.Grammar (checkGrammar)
 
-compileFile :: FilePath -> FilePath -> IO ()  
-compileFile source destination = 
-      parseFile source 
+compileFile :: FilePath -> FilePath -> IO ()
+compileFile source destination =
+      parseFile source
   >>= checkGrammar
-  >>= generateFile destination  
+  >>= generateFile destination
 
 compileString :: String -> IO String
 compileString source =

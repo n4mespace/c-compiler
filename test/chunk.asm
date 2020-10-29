@@ -6,19 +6,19 @@
 	
 	mov eax, 1
 	cmp eax, 0
-	jne __qcxpry_if
-	je __votnqv_else
+	jne __fnydcw_if
+	je __slyjfe_else
 	
-__qcxpry_if:
+__fnydcw_if:
 	mov eax, 13
 	push eax
 	mov eax, dword ptr [ebp + 4]
 	pop ebx
 	add eax, ebx
 	mov dword ptr [ebp + 4], eax
-	jmp__ellxki_endif
+	jmp__mkrmka_endif
 	
-__votnqv_else:
+__slyjfe_else:
 	mov eax, 2
 	push eax
 	mov eax, dword ptr [ebp + 4]
@@ -26,7 +26,7 @@ __votnqv_else:
 	add eax, ebx
 	mov dword ptr [ebp + 4], eax
 	
-__ellxki_endif:
+__mkrmka_endif:
 	mov eax, dword ptr [ebp + 4]
 	jmp__ret
 	

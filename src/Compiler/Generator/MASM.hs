@@ -5,12 +5,14 @@ module Compiler.Generator.MASM
   , generateString
   ) where
 
-import           Compiler.Grammar           (Err (..))
-import           Compiler.Syntax.Control
-import           Compiler.Syntax.Expression
+import           Compiler.Generator.Emiters
 
-import           System.IO.Unsafe           (unsafePerformIO)
-import           System.Random              (StdGen, newStdGen, randomRs)
+import           Compiler.Syntax.Control
+import           Compiler.Syntax.Error      (Err (..))
+import           Compiler.Syntax.Expression
+import           Compiler.Types
+
+import           System.Random              (newStdGen)
 
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program = do
@@ -32,7 +34,8 @@ generateString program =
 
 -- | Make program capable to generate asm code
 class Emittable p where
-  emit :: p -> Either Err String
+  emit :: p -> Either ErrT String
+  {-# MINIMAL emit #-}
 
 instance Emittable StmtT where
   emit (Block stmts) = emitBlock $ emit <$> stmts
@@ -71,7 +74,6 @@ instance Emittable StmtT where
     where
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
-
   emit (IfElse (Expr cond) stmt1 stmt2) =
     emitBlock
       [ nLine
@@ -96,9 +98,7 @@ instance Emittable StmtT where
 
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
-
   emit (Expr expr) = emit expr
-
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
 instance Emittable ExprT where
@@ -106,14 +106,9 @@ instance Emittable ExprT where
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
   emit (Unary op expr) =
     case op of
-      Neg        -> emit expr <$*> emitNLn "neg eax"
-      Complement -> emit expr <$*> emitNLn "xor eax, -1"
-      Not        ->
-        emitBlock
-          [ emit expr
-          , emitNLn "cmp eax, 0"
-          , emitNLn "sete al"
-          ]
+      Neg        -> emit expr <$*> negOp
+      Complement -> emit expr <$*> complementOp
+      Not        -> emit expr <$*> notOp
   emit (Binary op expr1 expr2) =
     case op of
       Subtract -> emitBinary subOp
@@ -127,7 +122,7 @@ instance Emittable ExprT where
       Less     -> emitBinary lessOp
       Equal    -> emitBinary eqOp
     where
-      emitBinary :: Either Err String -> Either Err String
+      emitBinary :: Either ErrT String -> Either ErrT String
       emitBinary f = emitBlock
         [ emit expr2
         , pushEax
@@ -143,97 +138,3 @@ instance Emittable C where
     if b
       then Right "1"
       else Right "0"
-
--- Helpers
-emitBlock :: [Either Err String] -> Either Err String
-emitBlock = (concat <$>) . sequence
-
-(<$*>) :: Either Err String -> Either Err String -> Either Err String
-expr1 <$*> expr2 = (<>) <$> expr1 <*> expr2
-infixr 6 <$*>
-
-emitNLn :: String -> Either Err String
-emitNLn = Right . ("\n\t" <>)
-
-nLine :: Either Err String
-nLine = emitNLn ""
-
-emitLn :: String -> Either Err String
-emitLn = Right . ("\t" <>)
-
-emitLbl :: String -> Either Err String
-emitLbl = Right . ("\n" <>) . (<> ":")
-
-popEbx :: Either Err String
-popEbx = emitNLn "pop ebx"
-
-pushEax :: Either Err String
-pushEax = emitNLn "push eax"
-
--- Basic math functions
-subOp :: Either Err String
-subOp = emitNLn "sub eax, ebx"
-
-addOp :: Either Err String
-addOp = emitNLn "add eax, ebx"
-
-modOp :: Either Err String
-modOp =
-  emitBlock
-    [ emitNLn "xor edx, edx"
-    , emitNLn "div ebx"
-    , emitNLn "mov eax, edx"
-    ]
-
-mulOp :: Either Err String
-mulOp = emitNLn "imul ebx"
-
-divOp :: Either Err String
-divOp =
-  emitNLn "cdq" <$*>
-  emitNLn "idiv ebx"
-
-andOp :: Either Err String
-andOp = emitNLn "and eax, ebx"
-
-orOp :: Either Err String
-orOp = emitNLn "or eax, ebx"
-
-eqOp :: Either Err String
-eqOp =
-  emitNLn "cmp eax, ebx" <$*>
-  emitNLn "sete al"
-
-greaterOp :: Either Err String
-greaterOp =
-  emitNLn "cmp eax, ebx" <$*>
-  emitNLn "setg al"
-
-lessOp :: Either Err String
-lessOp =
-  emitNLn "cmp eax, ebx" <$*>
-  emitNLn "setl al"
-
--- Work with control flow
-goToIfElse :: String -> String -> Either Err String
-goToIfElse lbl lbl' =
-  emitBlock
-    [ emitNLn "cmp eax, 0"
-    , emitNLn ("jne " <> lbl)
-    , emitNLn ("je " <> lbl')
-    ]
-
-goToIf :: String -> Either Err String
-goToIf lbl =
-  emitNLn "cmp eax, 0" <$*>
-  emitNLn ("je " <> lbl)
-
-goTo :: String -> Either Err String
-goTo = emitNLn . ("jmp" <>)
-
-goToReturn :: Either Err String
-goToReturn = goTo "__ret"
-
-getRandomLbl :: IO StdGen -> String
-getRandomLbl gen =
-  "__" <> take 6 (randomRs ('a','z') $ unsafePerformIO gen)
