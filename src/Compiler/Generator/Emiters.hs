@@ -2,8 +2,8 @@ module Compiler.Generator.Emiters where
 
 import           Compiler.Types
 
-import           System.IO.Unsafe           (unsafePerformIO)
-import           System.Random              (StdGen, randomRs)
+import           System.IO.Unsafe (unsafePerformIO)
+import           System.Random    (StdGen, randomRs)
 
 -- Helpers
 emitBlock :: [Either ErrT String] -> Either ErrT String
@@ -78,10 +78,10 @@ lessOp =
 notOp :: Either ErrT String
 notOp =
   emitNLn "cmp eax, 0" <$*>
-  emitNLn "sete al"    
+  emitNLn "sete al"
 
 negOp :: Either ErrT String
-negOp = emitNLn "neg eax" 
+negOp = emitNLn "neg eax"
 
 complementOp :: Either ErrT String
 complementOp = emitNLn "xor eax, -1"
@@ -101,7 +101,7 @@ goToIf lbl =
   emitNLn ("je " <> lbl)
 
 goTo :: String -> Either ErrT String
-goTo = emitNLn . ("jmp" <>)
+goTo = emitNLn . ("jmp " <>)
 
 goToReturn :: Either ErrT String
 goToReturn = goTo "__ret"
