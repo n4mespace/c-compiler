@@ -23,12 +23,12 @@ statements = do
 
 statement' :: Parser StmtT
 statement' =
-  try funcStmt <|>
   try returnStmt <|>
   try ifElseStmt <|>
   try ifStmt <|>
   try assignmentStmt <|>
   try simpleExpr <|>
+  try funcStmt <|>
   try blockOfStmts
 
 blockOfStmts :: ParsecT String () Identity StmtT
@@ -115,9 +115,28 @@ funcParam = do
   return $ Param typeOfP name
 
 funcStmt :: Parser StmtT
-funcStmt = do
-  typeOfF <- typeOfExpr
+funcStmt =
+  try callFuncStmt <|>
+  try defineFuncStmt <|>
+  try declareFuncStmt <?> "Function call | declaration | definition"
+
+callFuncStmt :: Parser StmtT
+callFuncStmt = do
+  name <- identifier
+  params <- parens (commaSep funcParam) <|> return []
+  return $ Func $ CallFunc name params
+
+declareFuncStmt :: Parser StmtT
+declareFuncStmt = do
+  typeOfFunc <- typeOfExpr
+  name <- identifier
+  params <- parens (commaSep funcParam) <|> return []
+  return $ Func $ DeclareFunc typeOfFunc name params
+
+defineFuncStmt :: Parser StmtT
+defineFuncStmt = do
+  typeOfFunc <- typeOfExpr
   name <- identifier
   params <- parens (commaSep funcParam) <|> return []
   body <- blockOfStmts
-  return $ Func typeOfF name params body
+  return $ Func $ DefineFunc typeOfFunc name params body

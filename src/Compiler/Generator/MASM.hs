@@ -39,19 +39,7 @@ class Emittable p where
 
 instance Emittable StmtT where
   emit (Block stmts) = emitBlock $ emit <$> stmts
-  emit (Func _ _ _ stmts) =
-    emitBlock
-      [ emitLn "push ebp"
-      , emitNLn "mov ebp, esp"
-      , nLine
-      , emit stmts
-      , nLine
-      , emitLbl "__ret"
-      , emitNLn "mov esp, ebp"
-      , emitNLn "pop ebp"
-      , nLine
-      , emitNLn "mov b, eax"
-      ]
+  emit (Func function) = emit function
   emit (Assignment assigmnent) = emit assigmnent
   emit (Return Null) = goToReturn
   emit (Return (Expr expr)) = emit expr
@@ -97,6 +85,22 @@ instance Emittable StmtT where
   emit (Expr expr) = emit expr
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
+instance Emittable FuncT where
+  emit (DefineFunc _ _ _ stmts) =
+    emitBlock
+      [ emitLn "push ebp"
+      , emitNLn "mov ebp, esp"
+      , nLine
+      , emit stmts
+      , nLine
+      , emitLbl "__ret"
+      , emitNLn "mov esp, ebp"
+      , emitNLn "pop ebp"
+      , nLine
+      , emitNLn "mov b, eax"
+      ]
+  emit DeclareFunc {} = Right ""
+  emit CallFunc {} = Right ""
 
 instance Emittable AssignmentT where
   emit (Assign _ name (Expr expr)) =

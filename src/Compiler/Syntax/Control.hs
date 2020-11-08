@@ -13,10 +13,16 @@ data Stmt a
   | Assignment (Assignment a)
   | If (Stmt a) (Stmt a)
   | IfElse (Stmt a) (Stmt a) (Stmt a)
-  | Func a Name [FParams a] (Stmt a)
+  | Func (Func a)
   | Expr (Expr a)
   | Return (Stmt a)
   | Null
+  deriving (Show)
+
+data Func a
+  = CallFunc Name [FParams a]
+  | DeclareFunc a Name [FParams a]
+  | DefineFunc a Name [FParams a] (Stmt a)
   deriving (Show)
 
 data Assignment a

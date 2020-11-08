@@ -1,7 +1,7 @@
 module Compiler.Parser.Checkers where
 
-import           Compiler.Syntax.Control        (Assignment (..), Name,
-                                                 Stmt (..))
+import           Compiler.Syntax.Control        (Assignment (..), Func (..),
+                                                 Name, Stmt (..))
 import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
 import           Compiler.Types
@@ -15,8 +15,14 @@ checker code = do
   (currScope, env) <- get
 
   case code of
-    Func fType fName fParams fBody ->
-      Func fType fName fParams <$> checker fBody
+    Func function ->
+      case function of
+        DefineFunc fType fName fParams fBody ->
+          Func . DefineFunc fType fName fParams <$> checker fBody
+        DeclareFunc fType fName fParams ->
+          return $ Func $ DeclareFunc fType fName fParams
+        CallFunc fName fParams ->
+          return $ Func $ CallFunc fName fParams
 
     Block block ->
       withScope $
