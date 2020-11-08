@@ -33,9 +33,6 @@ reservedCNames =
   , "bool"
   , "while"
   , "for"
-  , "&"
-  , "|"
-  , "!"
   , "return"
   , "if"
   , "else"
@@ -46,7 +43,22 @@ reservedCNames =
 
 reservedCOpNames :: [String]
 reservedCOpNames =
-  ["+", "-", "*", "/", "=", "!=", "%", "<", ">", "==", "&", "|", "!", "~"]
+  [ "+"
+  , "-"
+  , "*"
+  , "/"
+  , "="
+  , "%="
+  , "!="
+  , "<"
+  , ">"
+  , "=="
+  , "&"
+  , "|"
+  , "!"
+  , "~"
+  , "%"
+  ]
 
 lexer :: Tok.GenTokenParser String () Identity
 lexer = Tok.makeTokenParser langDefC

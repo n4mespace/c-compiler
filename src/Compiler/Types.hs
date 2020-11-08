@@ -1,6 +1,7 @@
 module Compiler.Types where
 
-import           Compiler.Syntax.Control        (FParams, Name, Stmt)
+import           Compiler.Syntax.Control        (Assignment, FParams, Name,
+                                                 Stmt)
 import           Compiler.Syntax.Error          (Err)
 import           Compiler.Syntax.Expression     (Expr)
 
@@ -20,6 +21,8 @@ type StmtT = Stmt Type
 type ExprT = Expr Type
 
 type FParamsT = FParams Type
+
+type AssignmentT = Assignment Type
 
 type ErrT = Err Type
 

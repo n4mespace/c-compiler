@@ -52,11 +52,7 @@ instance Emittable StmtT where
       , nLine
       , emitNLn "mov b, eax"
       ]
-  emit (Assign _ name (Expr expr)) =
-    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
-  emit (ValueAssign name (Expr expr)) =
-    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
-  emit (EmptyAssign _ _) = Right ""
+  emit (Assignment assigmnent) = emit assigmnent
   emit (Return Null) = goToReturn
   emit (Return (Expr expr)) = emit expr
                          <$*> goToReturn
@@ -100,6 +96,16 @@ instance Emittable StmtT where
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
   emit (Expr expr) = emit expr
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
+
+
+instance Emittable AssignmentT where
+  emit (Assign _ name (Expr expr)) =
+    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
+  emit (ValueAssign name (Expr expr)) =
+    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
+  emit (EmptyAssign _ _) = Right ""
+  emit unknown = Left $ BadExpression $ "cannot assign: " <> show unknown
+
 
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name

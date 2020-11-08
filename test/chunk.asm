@@ -6,19 +6,19 @@
 	
 	mov eax, 1
 	cmp eax, 0
-	jne __fnydcw_if
-	je __slyjfe_else
+	jne __vzuygt_if
+	je __wdyqut_else
 	
-__fnydcw_if:
+__vzuygt_if:
 	mov eax, 13
 	push eax
 	mov eax, dword ptr [ebp + 4]
 	pop ebx
 	add eax, ebx
 	mov dword ptr [ebp + 4], eax
-	jmp__mkrmka_endif
+	jmp __wfiaxc_endif
 	
-__slyjfe_else:
+__wdyqut_else:
 	mov eax, 2
 	push eax
 	mov eax, dword ptr [ebp + 4]
@@ -26,9 +26,9 @@ __slyjfe_else:
 	add eax, ebx
 	mov dword ptr [ebp + 4], eax
 	
-__mkrmka_endif:
+__wfiaxc_endif:
 	mov eax, dword ptr [ebp + 4]
-	jmp__ret
+	jmp __ret
 	
 __ret:
 	mov esp, ebp

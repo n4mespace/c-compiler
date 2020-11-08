@@ -13,7 +13,7 @@
 >> cabal build
 >> cabal install
 ```
-## and run your exe in /dist/build
+and run your exe in /dist/build
 
 ## To test generated masm32:
 - create file test.c with C code

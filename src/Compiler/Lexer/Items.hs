@@ -26,9 +26,7 @@ statement' =
   try returnStmt <|>
   try ifElseStmt <|>
   try ifStmt <|>
-  try assignStmt <|>
-  try emptyAssignStmt <|>
-  try assignValue <|>
+  try assignmentStmt <|>
   try simpleExpr <|>
   try blockOfStmts
 
@@ -60,26 +58,32 @@ returnStmt = do
   expr <- simpleExpr <|> (Null <$ semi)
   return $ Return expr
 
+assignmentStmt :: Parser StmtT
+assignmentStmt =
+  try assignStmt <|>
+  try emptyAssignStmt <|>
+  try assignValue <?> "Assingment"
+
 assignStmt :: Parser StmtT
 assignStmt = do
   typeOfVar <- typeOfExpr
   varName <- identifier
   reservedOp "="
   expr <- simpleExpr
-  return $ Assign typeOfVar varName expr
+  return $ Assignment $ Assign typeOfVar varName expr
 
 emptyAssignStmt :: Parser StmtT
 emptyAssignStmt = do
   typeOfVar <- typeOfExpr
   varName <- identifier <* semi
-  return $ EmptyAssign typeOfVar varName
+  return $ Assignment $ EmptyAssign typeOfVar varName
 
 assignValue :: Parser StmtT
 assignValue = do
   varName <- identifier
   reservedOp "="
   expr <- simpleExpr
-  return $ ValueAssign varName expr
+  return $ Assignment $ ValueAssign varName expr
 
 typeOfExpr :: Parser Type
 typeOfExpr =
