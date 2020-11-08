@@ -85,6 +85,24 @@ checker code = do
             ebpOffset :: EbpOffset
             ebpOffset = getMaxFromMap env + 4
 
+        OpAssign op aName expr -> do
+          envVarLookup currScope env aName funcNothing funcJust
+          where
+            funcNothing :: GlobalState
+            funcNothing =
+              lift $ Left $ BadExpression $ "unknown var: " <> aName
+
+            funcJust :: EbpOffset -> GlobalState
+            funcJust 0 = do
+                checkedExpr <- checker expr
+                modify $ addVarToEnv (currScope, aName) ebpOffset
+                return $ Assignment $ OpAssign op (constructAddress ebpOffset) checkedExpr
+            funcJust n =
+               Assignment . OpAssign op (constructAddress n) <$> checker expr
+
+            ebpOffset :: EbpOffset
+            ebpOffset = getMaxFromMap env + 4
+
     Expr (Var vName) -> do
       envVarLookup currScope env vName funcNothing funcJust
       where

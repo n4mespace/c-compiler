@@ -47,8 +47,13 @@ reservedCOpNames =
   , "-"
   , "*"
   , "/"
+  , "%"
   , "="
   , "%="
+  , "+="
+  , "-="
+  , "*="
+  , "/="
   , "!="
   , "<"
   , ">"
@@ -57,7 +62,6 @@ reservedCOpNames =
   , "|"
   , "!"
   , "~"
-  , "%"
   ]
 
 lexer :: Tok.GenTokenParser String () Identity
@@ -118,9 +122,34 @@ binaryInteger =
     binToDec 0 = 0
     binToDec i = 2 * binToDec (div i 10) + mod i 10
 
--- | Match operators and terms into expression
-expression :: Parser ExprT
-expression = buildExpressionParser operators terms
+-- | Boolean true
+booleanTrue :: ParsecT String () Identity (Expr a)
+booleanTrue = do
+  reserved "true"
+  return $ Const . BOOL $ True
+
+-- | Boolean false
+booleanFalse :: ParsecT String () Identity (Expr a)
+booleanFalse = do
+  reserved "false"
+  return $ Const . BOOL $ False
+
+-- | Boolean false or true
+constBool :: ParsecT String () Identity (Expr a)
+constBool =
+  try booleanTrue <|>
+  try booleanFalse
+
+-- | Bin and dec int values (also char converted to ascii)
+constInt :: ParsecT String () Identity (Expr a)
+constInt =
+  try (Const . INT <$> binaryInteger) <|>
+  try (Const . INT <$> integer) <|>
+  try (Const . INT . fromIntegral . fromEnum <$> singleChar)
+
+-- | Identifier name
+var :: ParsecT String () Identity (Expr a)
+var = try (Var <$> identifier)
 
 -- | Operator table
 operators :: [[Operator Char () ExprT]]
@@ -147,9 +176,10 @@ operators =
 terms :: ParsecT String () Identity ExprT
 terms =
   parens expression <|>
-  try (Var <$> identifier) <|>
-  try (Const . INT <$> binaryInteger) <|>
-  try (Const . INT <$> integer) <|>
-  try (Const . INT . fromIntegral . fromEnum <$> singleChar) <|>
-  try (reserved "true" >> return (Const . BOOL $ True)) <|>
-  try (reserved "false" >> return (Const . BOOL $ False)) <?> "constant arythmetic term"
+  var <|>
+  constInt <|>
+  constBool <?> "constant arythmetic term"
+
+-- | Match operators and terms into expression
+expression :: Parser ExprT
+expression = buildExpressionParser operators terms

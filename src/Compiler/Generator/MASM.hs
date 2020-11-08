@@ -104,7 +104,9 @@ instance Emittable AssignmentT where
   emit (ValueAssign name (Expr expr)) =
     emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
   emit (EmptyAssign _ _) = Right ""
-  emit unknown = Left $ BadExpression $ "cannot assign: " <> show unknown
+  emit (OpAssign op name (Expr expr)) =
+    emit $ Assign INT_T name $ Expr $ Binary op (Var name) expr    
+  emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
 
 
 instance Emittable ExprT where

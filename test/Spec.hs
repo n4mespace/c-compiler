@@ -2,8 +2,8 @@
 
 module Main where
 
-import Test.Hspec
-import Text.Heredoc
+import           Test.Hspec
+import           Text.Heredoc
 
 import qualified Lib
 
@@ -19,6 +19,7 @@ main = hspec $ do
     it "test5: if with scoped vars" $ mustCompile test5
     it "test6: multiple scopes" $ mustCompile test6
     it "test7: big scoped expr" $ mustCompile test7
+    it "test8: assign with operator" $ mustCompile test8
   -- Failure cases
   describe "Test.Compiler.FailureCases" $ do
     it "test1: uninitialized var" $ mustNotCompile test1'
@@ -26,6 +27,7 @@ main = hspec $ do
     it "test3: redefining a var" $ mustNotCompile test3'
     it "test4: using var from inner scope" $ mustNotCompile test4'
     it "test5: using var from if stmt scope" $ mustNotCompile test5'
+    it "test6: using assing operator without var declaration" $ mustNotCompile test6'
   where
     mustCompile :: String -> Expectation
     mustCompile test =
@@ -39,7 +41,7 @@ main = hspec $ do
 test1 :: String
 test1 = [str|
             |int main() {
-            |   return 3; 
+            |   return 3;
             |}
             |]
 
@@ -112,10 +114,19 @@ test7 = [str|
             |        {
             |          int c = 2 * b;
             |        }
-            |        return b; 
+            |        return b;
             |    } else {
             |        return cnt / 4;
             |    }
+            |}
+            |]
+
+test8 :: String
+test8 = [str|
+            |int main() {
+            |   int a = 4;
+            |   a %= (a - 1);
+            |   return a;
             |}
             |]
 
@@ -165,5 +176,13 @@ test5' = [str|
              |       int a = 3;
              |    }
              |    return a;
+             |}
+             |]
+
+test6' :: String
+test6' = [str|
+             |int main() {
+             |   a %= 4;
+             |   return a;
              |}
              |]

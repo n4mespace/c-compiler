@@ -23,4 +23,5 @@ data Assignment a
   = Assign a Name (Stmt a)
   | EmptyAssign a Name
   | ValueAssign Name (Stmt a)
+  | OpAssign BinOp Name (Stmt a)
   deriving (Show)

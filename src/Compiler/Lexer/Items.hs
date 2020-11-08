@@ -2,6 +2,7 @@ module Compiler.Lexer.Items where
 
 import           Compiler.Lexer.LanguageDefinition
 import           Compiler.Syntax.Control
+import           Compiler.Syntax.Expression        (BinOp (..))
 import           Compiler.Types
 
 import           Data.Functor.Identity             (Identity)
@@ -62,7 +63,8 @@ assignmentStmt :: Parser StmtT
 assignmentStmt =
   try assignStmt <|>
   try emptyAssignStmt <|>
-  try assignValue <?> "Assingment"
+  try assignValueStmt <|>
+  try opAssignStmt <?> "Assingment"
 
 assignStmt :: Parser StmtT
 assignStmt = do
@@ -78,12 +80,27 @@ emptyAssignStmt = do
   varName <- identifier <* semi
   return $ Assignment $ EmptyAssign typeOfVar varName
 
-assignValue :: Parser StmtT
-assignValue = do
+assignValueStmt :: Parser StmtT
+assignValueStmt = do
   varName <- identifier
   reservedOp "="
   expr <- simpleExpr
   return $ Assignment $ ValueAssign varName expr
+
+opAssignStmt :: Parser StmtT
+opAssignStmt = do
+  varName <- identifier
+  op <- typeOfAssignOp
+  expr <- simpleExpr
+  return $ Assignment $ OpAssign op varName expr
+
+typeOfAssignOp :: Parser BinOp
+typeOfAssignOp =
+  try (reservedOp "%=" >> return Mod) <|>
+  try (reservedOp "+=" >> return Add) <|>
+  try (reservedOp "-=" >> return Subtract) <|>
+  try (reservedOp "*=" >> return Multiply) <|>
+  try (reservedOp "/=" >> return Divide) <?> "Assign operator"
 
 typeOfExpr :: Parser Type
 typeOfExpr =
