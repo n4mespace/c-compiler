@@ -1,7 +1,6 @@
 module Compiler.Parser.Checkers where
 
-import           Compiler.Syntax.Control        (Assignment (..), Func (..),
-                                                 Name, Stmt (..))
+import           Compiler.Syntax.Control
 import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
 import           Compiler.Types
@@ -12,46 +11,11 @@ import qualified Data.Map.Strict                as M
 
 checker :: StmtT -> GlobalState
 checker code = do
-  (currScope, env) <- get
+  g <- get
+  let (currScope, env) = g
 
   case code of
-    Func function ->
-      case function of
-        DefineFunc fType fName fParams fBody ->
-          envIdLookup currScope env fName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing = do
-              modify $ addIdToEnv (currScope, fName) 0
-              Func . DefineFunc fType fName fParams <$> checker fBody
-
-            funcJust :: EbpOffset -> GlobalState
-            funcJust (-1) = funcNothing
-            funcJust _ =
-              lift $ Left $ BadExpression $ "Mulpiple function definition: " <> fName
-
-        DeclareFunc fType fName fParams ->
-          envIdLookup currScope env fName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing = do
-              modify $ addIdToEnv (currScope, fName) (-1)
-              return $ Func $ DeclareFunc fType fName fParams
-
-            funcJust :: EbpOffset -> GlobalState
-            funcJust _ =
-              lift $ Left $ BadExpression $ "Already declared function: " <> fName
-
-        CallFunc fName fParams ->
-          envIdLookup currScope env fName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing =
-              lift $ Left $ BadExpression $ "Unknown func: " <> fName
-
-            funcJust :: EbpOffset -> GlobalState
-            funcJust _ =
-              return $ Func $ CallFunc fName fParams
+    Func func -> checkerFunc g func
 
     Block block ->
       withScope $
@@ -63,7 +27,7 @@ checker code = do
     Assignment assignment ->
       case assignment of
         Assign aType aName expr -> do
-          envIdLookup currScope env aName (funcNothing ebpOffset) funcJust
+          envIdLookup g aName (funcNothing ebpOffset) funcJust
           where
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
@@ -83,7 +47,7 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
         EmptyAssign aType aName -> do
-          envIdLookup currScope env aName (funcNothing 0) funcJust
+          envIdLookup g aName (funcNothing 0) funcJust
           where
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
@@ -103,7 +67,7 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
         ValueAssign aName expr -> do
-          envIdLookup currScope env aName funcNothing funcJust
+          envIdLookup g aName funcNothing funcJust
           where
             funcNothing :: GlobalState
             funcNothing =
@@ -121,7 +85,7 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
         OpAssign op aName expr -> do
-          envIdLookup currScope env aName funcNothing funcJust
+          envIdLookup g aName funcNothing funcJust
           where
             funcNothing :: GlobalState
             funcNothing =
@@ -139,7 +103,7 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
     Expr (Var vName) -> do
-      envIdLookup currScope env vName funcNothing funcJust
+      envIdLookup g vName funcNothing funcJust
       where
         funcNothing :: GlobalState
         funcNothing =
@@ -152,13 +116,13 @@ checker code = do
           return $ Expr . Var $ constructAddress n
 
     Expr (Binary op expr1 expr2) ->
-      case Binary op <$> exprLookup (currScope, env) expr1
-                     <*> exprLookup (currScope, env) expr2 of
+      case Binary op <$> checkerExpr g expr1
+                     <*> checkerExpr g expr2 of
         Left e    -> lift $ Left e
         Right bin -> return $ Expr bin
 
     Expr (Unary op expr) ->
-      case Unary op <$> exprLookup (currScope, env) expr of
+      case Unary op <$> checkerExpr g expr of
         Left e  -> lift $ Left e
         Right v -> return $ Expr v
 
@@ -170,6 +134,82 @@ checker code = do
     Return stmt -> Return <$> checker stmt
 
     stmt -> return stmt
+
+checkerFunc :: GlobalEnv -> FuncT -> GlobalState
+checkerFunc g@(scope, _) func =
+  case func of
+    DefineFunc fType fName fParams fBody ->
+      envIdLookup g fName funcNothing funcJust
+      where
+        funcNothing :: GlobalState
+        funcNothing = do
+          modify $ addIdToEnv (scope, fName) 0
+          Func <$> (DefineFunc fType fName <$>
+                    lift (checkerParams fParams) <*>
+                    checker fBody)
+
+        funcJust :: EbpOffset -> GlobalState
+        funcJust (-1) = funcNothing
+        funcJust _ =
+          lift $ Left $ BadExpression $ "Mulpiple function definition: " <> fName
+
+    DeclareFunc fType fName fParams ->
+      envIdLookup g fName funcNothing funcJust
+      where
+        funcNothing :: GlobalState
+        funcNothing = do
+          modify $ addIdToEnv (scope, fName) (-1)
+          Func <$> (DeclareFunc fType fName <$>
+                    lift (checkerParams fParams))
+
+        funcJust :: EbpOffset -> GlobalState
+        funcJust _ =
+          lift $ Left $ BadExpression $ "Already declared function: " <> fName
+
+    CallFunc fName fArgs ->
+      envIdLookup g fName funcNothing funcJust
+      where
+        funcNothing :: GlobalState
+        funcNothing =
+          lift $ Left $ BadExpression $ "Unknown func: " <> fName
+
+        funcJust :: EbpOffset -> GlobalState
+        funcJust _ =
+          Func <$> (CallFunc fName <$>
+                    lift (checkerArgs fArgs))
+
+checkerParams :: [FParamsT] -> Either ErrT [FParamsT]
+checkerParams = undefined
+
+checkerArgs :: [FArgsT] -> Either ErrT [FArgsT]
+checkerArgs = undefined
+
+checkerExpr :: GlobalEnv -> ExprT -> Either ErrT ExprT
+checkerExpr (scope, env) (Var vName) =
+  case M.lookup (scope, vName) env of
+    Nothing -> do
+      if scope /= 0
+        then checkerExpr (scope - 1, env) (Var vName)
+        else Left $ BadExpression $ "Unknown var: " <> vName
+    Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
+    Just n  -> Right $ Var $ constructAddress n
+checkerExpr st (Binary op' expr1' expr2') =
+  Binary op' <$> checkerExpr st expr1' <*> checkerExpr st expr2'
+checkerExpr st (Unary op' expr') = Unary op' <$> checkerExpr st expr'
+checkerExpr _ rest = Right rest
+
+envIdLookup :: GlobalEnv
+            -> Name
+            -> GlobalState
+            -> (EbpOffset -> GlobalState)
+            -> GlobalState
+envIdLookup (scope, env) aName funcNothing funcJust =
+  case M.lookup (scope, aName) env of
+    Nothing -> do
+      if scope /= 0
+        then envIdLookup (scope - 1, env) aName funcNothing funcJust
+        else funcNothing
+    Just offset -> funcJust offset
 
 -- Helpers
 constructAddress :: EbpOffset -> String
@@ -189,31 +229,3 @@ prevScope (scope, e) = (scope - 1, e)
 
 withScope :: GlobalState -> GlobalState
 withScope g = modify nextScope >> g <* modify prevScope
-
-exprLookup :: GlobalEnv -> ExprT -> Either ErrT ExprT
-exprLookup (scope, env) (Var vName) =
-  case M.lookup (scope, vName) env of
-    Nothing -> do
-      if scope /= 0
-        then exprLookup (scope - 1, env) (Var vName)
-        else Left $ BadExpression $ "Unknown var: " <> vName
-    Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
-    Just n  -> Right $ Var $ constructAddress n
-exprLookup st (Binary op' expr1' expr2') =
-  Binary op' <$> exprLookup st expr1' <*> exprLookup st expr2'
-exprLookup st (Unary op' expr') = Unary op' <$> exprLookup st expr'
-exprLookup _ rest = Right rest
-
-envIdLookup :: CurrScope
-             -> EnvMap
-             -> Name
-             -> GlobalState
-             -> (EbpOffset -> GlobalState)
-             -> GlobalState
-envIdLookup scope env aName funcNothing funcJust =
-  case M.lookup (scope, aName) env of
-    Nothing -> do
-      if scope /= 0
-        then envIdLookup (scope - 1) env aName funcNothing funcJust
-        else funcNothing
-    Just offset -> funcJust offset
