@@ -145,7 +145,7 @@ checkerFunc g@(scope, _) func =
         funcNothing = do
           modify $ addIdToEnv (scope, fName) 0
           Func <$> (DefineFunc fType fName <$>
-                    lift (checkerParams fParams) <*>
+                    lift (checkerParams g fParams) <*>
                     checker fBody)
 
         funcJust :: EbpOffset -> GlobalState
@@ -160,7 +160,7 @@ checkerFunc g@(scope, _) func =
         funcNothing = do
           modify $ addIdToEnv (scope, fName) (-1)
           Func <$> (DeclareFunc fType fName <$>
-                    lift (checkerParams fParams))
+                    lift (checkerParams g fParams))
 
         funcJust :: EbpOffset -> GlobalState
         funcJust _ =
@@ -176,13 +176,13 @@ checkerFunc g@(scope, _) func =
         funcJust :: EbpOffset -> GlobalState
         funcJust _ =
           Func <$> (CallFunc fName <$>
-                    lift (checkerArgs fArgs))
+                    lift (checkerArgs g fArgs))
 
-checkerParams :: [FParamsT] -> Either ErrT [FParamsT]
-checkerParams = undefined
+checkerArgs :: GlobalEnv -> [FArgsT] -> Either ErrT [FArgsT]
+checkerArgs _ = Right
 
-checkerArgs :: [FArgsT] -> Either ErrT [FArgsT]
-checkerArgs = undefined
+checkerParams :: GlobalEnv -> [FParamsT] -> Either ErrT [FParamsT]
+checkerParams _ = Right
 
 checkerExpr :: GlobalEnv -> ExprT -> Either ErrT ExprT
 checkerExpr (scope, env) (Var vName) =

@@ -1,17 +1,12 @@
+jmp __start_main
+	
+__start_main:
 	push ebp
 	mov ebp, esp
 	
-	mov eax, 3
-	jmp __ret
+	jmp __start_test
 	
-__ret:
-	mov esp, ebp
-	pop ebp
-	
-	mov b, eax	push ebp
-	mov ebp, esp
-	
-	mov eax, 2
+__end_test:
 	mov dword ptr [ebp + 4], eax
 	mov eax, 3
 	push eax
@@ -21,10 +16,15 @@ __ret:
 	idiv ebx
 	mov dword ptr [ebp + 4], eax
 	mov eax, dword ptr [ebp + 4]
-	jmp __ret
 	
-__ret:
 	mov esp, ebp
 	pop ebp
 	
 	mov b, eax
+	jmp __end_main
+	
+__start_test:
+	mov eax, 1
+	jmp __end_test
+	
+__end_main:

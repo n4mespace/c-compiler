@@ -31,6 +31,9 @@ popEbx = emitNLn "pop ebx"
 pushEax :: Either ErrT String
 pushEax = emitNLn "push eax"
 
+movToVar :: String -> Either ErrT String
+movToVar = emitNLn . ("mov " <>) . (<> ", eax")
+
 -- Basic math functions
 subOp :: Either ErrT String
 subOp = emitNLn "sub eax, ebx"
@@ -103,9 +106,16 @@ goToIf lbl =
 goTo :: String -> Either ErrT String
 goTo = emitNLn . ("jmp " <>)
 
-goToReturn :: Either ErrT String
-goToReturn = goTo "__ret"
-
 getRandomLbl :: IO StdGen -> String
 getRandomLbl gen =
   "__" <> take 6 (randomRs ('a','z') $ unsafePerformIO gen)
+
+addMainFuncLbl :: Either ErrT String -> Either ErrT String
+addMainFuncLbl emitedProgram =
+  emitBlock
+    [ Right "jmp __start_main"
+    , nLine
+    , emitedProgram
+    , nLine
+    , emitLbl "__end_main"
+    ]
