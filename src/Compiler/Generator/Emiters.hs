@@ -113,8 +113,7 @@ getRandomLbl gen =
 addMainFuncLbl :: Either ErrT String -> Either ErrT String
 addMainFuncLbl emitedProgram =
   emitBlock
-    [ Right "jmp __start_main"
-    , nLine
+    [ emitLn "jmp __start_main"
     , emitedProgram
     , nLine
     , emitLbl "__end_main"

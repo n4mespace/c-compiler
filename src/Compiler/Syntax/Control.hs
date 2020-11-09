@@ -16,17 +16,12 @@ data Stmt a
   deriving (Show)
 
 data Func a
-  = CallFunc Name [FArgs a]
-  | DeclareFunc a Name [FParams a]
+  = DeclareFunc a Name [FParams a]
   | DefineFunc a Name [FParams a] (Stmt a)
   deriving (Show)
 
 data FParams a =
   Param a Name
-  deriving (Show)
-
-newtype FArgs a =
-  Arg (Stmt a)
   deriving (Show)
 
 data Assignment a

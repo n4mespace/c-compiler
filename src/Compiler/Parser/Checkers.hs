@@ -125,6 +125,18 @@ checker code = do
       case Unary op <$> checkerExpr g expr of
         Left e  -> lift $ Left e
         Right v -> return $ Expr v
+    
+    Expr (CallFunc fName fArgs) ->
+      envIdLookup g fName funcNothing funcJust
+      where
+        funcNothing :: GlobalState
+        funcNothing =
+          lift $ Left $ BadExpression $ "Unknown func: " <> fName
+
+        funcJust :: EbpOffset -> GlobalState
+        funcJust _ =
+          Expr <$> (CallFunc fName <$>
+                    lift (checkerArgs g fArgs))
 
     If expr stmt -> If <$> checker expr <*> checker stmt
 
@@ -166,37 +178,11 @@ checkerFunc g@(scope, _) func =
         funcJust _ =
           lift $ Left $ BadExpression $ "Already declared function: " <> fName
 
-    CallFunc fName fArgs ->
-      envIdLookup g fName funcNothing funcJust
-      where
-        funcNothing :: GlobalState
-        funcNothing =
-          lift $ Left $ BadExpression $ "Unknown func: " <> fName
-
-        funcJust :: EbpOffset -> GlobalState
-        funcJust _ =
-          Func <$> (CallFunc fName <$>
-                    lift (checkerArgs g fArgs))
-
 checkerArgs :: GlobalEnv -> [FArgsT] -> Either ErrT [FArgsT]
 checkerArgs _ = Right
 
 checkerParams :: GlobalEnv -> [FParamsT] -> Either ErrT [FParamsT]
 checkerParams _ = Right
-
-checkerExpr :: GlobalEnv -> ExprT -> Either ErrT ExprT
-checkerExpr (scope, env) (Var vName) =
-  case M.lookup (scope, vName) env of
-    Nothing -> do
-      if scope /= 0
-        then checkerExpr (scope - 1, env) (Var vName)
-        else Left $ BadExpression $ "Unknown var: " <> vName
-    Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
-    Just n  -> Right $ Var $ constructAddress n
-checkerExpr st (Binary op' expr1' expr2') =
-  Binary op' <$> checkerExpr st expr1' <*> checkerExpr st expr2'
-checkerExpr st (Unary op' expr') = Unary op' <$> checkerExpr st expr'
-checkerExpr _ rest = Right rest
 
 envIdLookup :: GlobalEnv
             -> Name
@@ -210,6 +196,27 @@ envIdLookup (scope, env) aName funcNothing funcJust =
         then envIdLookup (scope - 1, env) aName funcNothing funcJust
         else funcNothing
     Just offset -> funcJust offset
+
+checkerExpr :: GlobalEnv -> ExprT -> Either ErrT ExprT
+checkerExpr (scope, env) v@(Var vName) =
+  case M.lookup (scope, vName) env of
+    Nothing ->
+      if scope /= 0
+        then checkerExpr (scope - 1, env) v
+        else Left $ BadExpression $ "Unknown var: " <> vName
+    Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
+    Just n  -> Right $ Var $ constructAddress n
+checkerExpr (scope, env) f@(CallFunc fName fArgs) =
+  case M.lookup (scope, fName) env of
+    Nothing ->
+      if scope /= 0
+        then checkerExpr (scope - 1, env) f
+        else Left $ BadExpression $ "Unknown function: " <> fName
+    Just _ -> Right f
+checkerExpr g (Binary op' expr1' expr2') =
+  Binary op' <$> checkerExpr g expr1' <*> checkerExpr g expr2'
+checkerExpr g (Unary op' expr') = Unary op' <$> checkerExpr g expr'
+checkerExpr _ rest = Right rest
 
 -- Helpers
 constructAddress :: EbpOffset -> String

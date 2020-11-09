@@ -89,7 +89,8 @@ instance Emittable FuncT where
   emit (DefineFunc _ fName _ stmts) =
     case fName of
       "main" -> emitBlock
-        [ emitLbl $ "__start_" <> fName
+        [ nLine
+        , emitLbl $ "__start_" <> fName
         , emitNLn "push ebp"
         , emitNLn "mov ebp, esp"
         , nLine
@@ -107,7 +108,6 @@ instance Emittable FuncT where
         , emit stmts
         , goTo $ "__end_" <> fName
         ]
-  emit CallFunc {} = Right ""
 
 
 instance Emittable AssignmentT where
@@ -116,24 +116,10 @@ instance Emittable AssignmentT where
       [ emit expr
       , movToVar name
       ]
-  emit (Assign _ vName (Func (CallFunc fName fParams))) =
-    emitBlock
-      [ goTo $ "__start_" <> fName
-      , nLine
-      , emitLbl $ "__end_" <> fName
-      , movToVar vName
-      ]
   emit (ValueAssign name (Expr expr)) =
     emitBlock
       [ emit expr
       , movToVar name
-      ]
-  emit (ValueAssign vName (Func (CallFunc fName fParams))) =
-    emitBlock
-      [ goTo $ "__start_" <> fName
-      , nLine
-      , emitLbl $ "__end_" <> fName
-      , movToVar vName
       ]
   emit (EmptyAssign _ _) = Right ""
   emit (OpAssign op name (Expr expr)) =
@@ -144,6 +130,12 @@ instance Emittable AssignmentT where
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
+  emit (CallFunc fName fParams) =
+    emitBlock
+      [ goTo $ "__start_" <> fName
+      , nLine
+      , emitLbl $ "__end_" <> fName
+      ]
   emit (Unary op expr) =
     case op of
       Neg        -> emit expr <$*> negOp

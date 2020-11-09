@@ -50,14 +50,6 @@ ifStmt = do
   stmt <- blockOfStmts
   return $ If (Expr cond) stmt
 
-exprStmt :: Parser StmtT
-exprStmt = Expr <$> expression
-
-simpleExpr :: Parser StmtT
-simpleExpr =
-  try (exprStmt <* semi) <|>
-  try (callFuncStmt <* semi) <?> "Expression"
-
 returnStmt :: Parser StmtT
 returnStmt = do
   reserved "return"
@@ -82,7 +74,7 @@ assignStmt = do
 emptyAssignStmt :: Parser StmtT
 emptyAssignStmt = do
   typeOfVar <- typeOfExpr
-  varName <- identifier 
+  varName <- identifier
   _ <- semi
   return $ Assignment $ EmptyAssign typeOfVar varName
 
@@ -120,21 +112,10 @@ funcParam = do
   name <- identifier
   return $ Param typeOfP name
 
-funcArg :: Parser FArgsT
-funcArg = do
-  arg <- exprStmt <|> callFuncStmt
-  return $ Arg arg
-
 funcStmt :: Parser StmtT
 funcStmt =
-  try defineFuncStmt <|>
-  try declareFuncStmt <?> "Function declaration | definition"
-
-callFuncStmt :: Parser StmtT
-callFuncStmt = do
-  name <- identifier
-  args <- parens $ commaSep funcArg
-  return $ Func $ CallFunc name args
+  try declareFuncStmt <|>
+  try defineFuncStmt <?> "Function declaration | definition"
 
 declareFuncStmt :: Parser StmtT
 declareFuncStmt = do

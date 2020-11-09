@@ -2,7 +2,7 @@ module Compiler.Types where
 
 import           Compiler.Syntax.Control
 import           Compiler.Syntax.Error          (Err)
-import           Compiler.Syntax.Expression     (Expr)
+import           Compiler.Syntax.Expression
 
 import           Control.Monad.Trans.State.Lazy (StateT)
 import           Data.Map.Strict                (Map)

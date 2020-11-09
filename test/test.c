@@ -1,12 +1,15 @@
-int test();
+int one();
 
-int main() {    
-    int a = test();
-    test();
-    a /= 3;
-    return a;
+int two() {
+    return 2;
 }
 
-int test() {
+int main() {    
+    int a = one();
+    a *= 3;
+    return two() * a;
+}
+
+int one() {
     return 1;
 }
