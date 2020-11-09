@@ -50,8 +50,13 @@ ifStmt = do
   stmt <- blockOfStmts
   return $ If (Expr cond) stmt
 
+exprStmt :: Parser StmtT
+exprStmt = Expr <$> expression
+
 simpleExpr :: Parser StmtT
-simpleExpr = Expr <$> expression <* semi
+simpleExpr =
+  try (exprStmt <* semi) <|>
+  try (callFuncStmt <* semi) <?> "Expression"
 
 returnStmt :: Parser StmtT
 returnStmt = do
@@ -77,7 +82,8 @@ assignStmt = do
 emptyAssignStmt :: Parser StmtT
 emptyAssignStmt = do
   typeOfVar <- typeOfExpr
-  varName <- identifier <* semi
+  varName <- identifier 
+  _ <- semi
   return $ Assignment $ EmptyAssign typeOfVar varName
 
 assignValueStmt :: Parser StmtT
@@ -96,11 +102,11 @@ opAssignStmt = do
 
 typeOfAssignOp :: Parser BinOp
 typeOfAssignOp =
-  try (reservedOp "%=" >> return Mod) <|>
-  try (reservedOp "+=" >> return Add) <|>
-  try (reservedOp "-=" >> return Subtract) <|>
-  try (reservedOp "*=" >> return Multiply) <|>
-  try (reservedOp "/=" >> return Divide) <?> "Assign operator"
+  (reservedOp "%=" >> return Mod) <|>
+  (reservedOp "+=" >> return Add) <|>
+  (reservedOp "-=" >> return Subtract) <|>
+  (reservedOp "*=" >> return Multiply) <|>
+  (reservedOp "/=" >> return Divide) <?> "Assign operator"
 
 typeOfExpr :: Parser Type
 typeOfExpr =
@@ -114,29 +120,34 @@ funcParam = do
   name <- identifier
   return $ Param typeOfP name
 
+funcArg :: Parser FArgsT
+funcArg = do
+  arg <- exprStmt <|> callFuncStmt
+  return $ Arg arg
+
 funcStmt :: Parser StmtT
 funcStmt =
-  try callFuncStmt <|>
   try defineFuncStmt <|>
-  try declareFuncStmt <?> "Function call | declaration | definition"
+  try declareFuncStmt <?> "Function declaration | definition"
 
 callFuncStmt :: Parser StmtT
 callFuncStmt = do
   name <- identifier
-  params <- parens (commaSep funcParam) <|> return []
-  return $ Func $ CallFunc name params
+  args <- parens $ commaSep funcArg
+  return $ Func $ CallFunc name args
 
 declareFuncStmt :: Parser StmtT
 declareFuncStmt = do
   typeOfFunc <- typeOfExpr
   name <- identifier
-  params <- parens (commaSep funcParam) <|> return []
+  params <- parens $ commaSep funcParam
+  _ <- semi
   return $ Func $ DeclareFunc typeOfFunc name params
 
 defineFuncStmt :: Parser StmtT
 defineFuncStmt = do
   typeOfFunc <- typeOfExpr
   name <- identifier
-  params <- parens (commaSep funcParam) <|> return []
+  params <- parens $ commaSep funcParam
   body <- blockOfStmts
   return $ Func $ DefineFunc typeOfFunc name params body

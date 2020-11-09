@@ -149,7 +149,7 @@ constInt =
 
 -- | Identifier name
 var :: ParsecT String () Identity (Expr a)
-var = try (Var <$> identifier)
+var = try $ Var <$> identifier
 
 -- | Operator table
 operators :: [[Operator Char () ExprT]]

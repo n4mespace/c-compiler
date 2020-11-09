@@ -86,6 +86,7 @@ instance Emittable StmtT where
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
 instance Emittable FuncT where
+  emit DeclareFunc {} = Right ""
   emit (DefineFunc _ _ _ stmts) =
     emitBlock
       [ emitLn "push ebp"
@@ -99,8 +100,8 @@ instance Emittable FuncT where
       , nLine
       , emitNLn "mov b, eax"
       ]
-  emit DeclareFunc {} = Right ""
   emit CallFunc {} = Right ""
+
 
 instance Emittable AssignmentT where
   emit (Assign _ name (Expr expr)) =
