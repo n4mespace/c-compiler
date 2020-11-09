@@ -18,11 +18,40 @@ checker code = do
     Func function ->
       case function of
         DefineFunc fType fName fParams fBody ->
-          Func . DefineFunc fType fName fParams <$> checker fBody
+          envIdLookup currScope env fName funcNothing funcJust
+          where
+            funcNothing :: GlobalState
+            funcNothing = do
+              modify $ addIdToEnv (currScope, fName) 0
+              Func . DefineFunc fType fName fParams <$> checker fBody
+
+            funcJust :: EbpOffset -> GlobalState
+            funcJust (-1) = funcNothing
+            funcJust _ =
+              lift $ Left $ BadExpression $ "Mulpiple function definition: " <> fName
+
         DeclareFunc fType fName fParams ->
-          return $ Func $ DeclareFunc fType fName fParams
+          envIdLookup currScope env fName funcNothing funcJust
+          where
+            funcNothing :: GlobalState
+            funcNothing = do
+              modify $ addIdToEnv (currScope, fName) (-1)
+              return $ Func $ DeclareFunc fType fName fParams
+
+            funcJust :: EbpOffset -> GlobalState
+            funcJust _ =
+              lift $ Left $ BadExpression $ "Already declared function: " <> fName
+
         CallFunc fName fParams ->
-          return $ Func $ CallFunc fName fParams
+          envIdLookup currScope env fName funcNothing funcJust
+          where
+            funcNothing :: GlobalState
+            funcNothing =
+              lift $ Left $ BadExpression $ "Unknown func: " <> fName
+
+            funcJust :: EbpOffset -> GlobalState
+            funcJust _ =
+              return $ Func $ CallFunc fName fParams
 
     Block block ->
       withScope $
@@ -34,12 +63,12 @@ checker code = do
     Assignment assignment ->
       case assignment of
         Assign aType aName expr -> do
-          envVarLookup currScope env aName (funcNothing ebpOffset) funcJust
+          envIdLookup currScope env aName (funcNothing ebpOffset) funcJust
           where
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
               checkedExpr <- checker expr
-              modify $ addVarToEnv (currScope, aName) offset
+              modify $ addIdToEnv (currScope, aName) offset
               return $ Assignment $ Assign aType (constructAddress offset) checkedExpr
 
             funcJust :: EbpOffset -> GlobalState
@@ -48,17 +77,17 @@ checker code = do
               if updatedScope < currScope
                 then funcNothing ebpOffset
                 else lift $ Left $
-                    BadExpression $ "already declared var: " <> aName
+                    BadExpression $ "Already declared var: " <> aName
 
             ebpOffset :: EbpOffset
             ebpOffset = getMaxFromMap env + 4
 
         EmptyAssign aType aName -> do
-          envVarLookup currScope env aName (funcNothing 0) funcJust
+          envIdLookup currScope env aName (funcNothing 0) funcJust
           where
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
-              modify $ addVarToEnv (currScope, aName) offset
+              modify $ addIdToEnv (currScope, aName) offset
               return $ Assignment $ EmptyAssign aType (constructAddress offset)
 
             funcJust :: EbpOffset -> GlobalState
@@ -68,22 +97,22 @@ checker code = do
                 then
                   funcNothing ebpOffset
                 else
-                  lift $ Left $ BadExpression $ "already declared var: " <> aName
+                  lift $ Left $ BadExpression $ "Already declared var: " <> aName
 
             ebpOffset :: EbpOffset
             ebpOffset = getMaxFromMap env + 4
 
         ValueAssign aName expr -> do
-          envVarLookup currScope env aName funcNothing funcJust
+          envIdLookup currScope env aName funcNothing funcJust
           where
             funcNothing :: GlobalState
             funcNothing =
-              lift $ Left $ BadExpression $ "unknown var: " <> aName
+              lift $ Left $ BadExpression $ "Unknown var: " <> aName
 
             funcJust :: EbpOffset -> GlobalState
             funcJust 0 = do
                 checkedExpr <- checker expr
-                modify $ addVarToEnv (currScope, aName) ebpOffset
+                modify $ addIdToEnv (currScope, aName) ebpOffset
                 return $ Assignment $ ValueAssign (constructAddress ebpOffset) checkedExpr
             funcJust n =
                Assignment . ValueAssign (constructAddress n) <$> checker expr
@@ -92,16 +121,16 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
         OpAssign op aName expr -> do
-          envVarLookup currScope env aName funcNothing funcJust
+          envIdLookup currScope env aName funcNothing funcJust
           where
             funcNothing :: GlobalState
             funcNothing =
-              lift $ Left $ BadExpression $ "unknown var: " <> aName
+              lift $ Left $ BadExpression $ "Unknown var: " <> aName
 
             funcJust :: EbpOffset -> GlobalState
             funcJust 0 = do
                 checkedExpr <- checker expr
-                modify $ addVarToEnv (currScope, aName) ebpOffset
+                modify $ addIdToEnv (currScope, aName) ebpOffset
                 return $ Assignment $ OpAssign op (constructAddress ebpOffset) checkedExpr
             funcJust n =
                Assignment . OpAssign op (constructAddress n) <$> checker expr
@@ -110,15 +139,15 @@ checker code = do
             ebpOffset = getMaxFromMap env + 4
 
     Expr (Var vName) -> do
-      envVarLookup currScope env vName funcNothing funcJust
+      envIdLookup currScope env vName funcNothing funcJust
       where
         funcNothing :: GlobalState
         funcNothing =
-          lift $ Left $ BadExpression $ "unknown var: " <> vName
+          lift $ Left $ BadExpression $ "Unknown var: " <> vName
 
         funcJust :: EbpOffset -> GlobalState
         funcJust 0 =
-          lift $ Left $ BadExpression $ "uninitialized var: " <> vName
+          lift $ Left $ BadExpression $ "Uninitialized var: " <> vName
         funcJust n =
           return $ Expr . Var $ constructAddress n
 
@@ -149,8 +178,8 @@ constructAddress = ("dword ptr [ebp + " <>) . (<> "]") . show
 getMaxFromMap :: Ord v => M.Map k v -> v
 getMaxFromMap m = maximum (snd <$> M.toList m)
 
-addVarToEnv :: (Scope, Name) -> EbpOffset -> GlobalEnv -> GlobalEnv
-addVarToEnv scopedName offset (scope, s) = (scope, M.insert scopedName offset s)
+addIdToEnv :: (Scope, Name) -> EbpOffset -> GlobalEnv -> GlobalEnv
+addIdToEnv scopedName offset (scope, s) = (scope, M.insert scopedName offset s)
 
 nextScope :: GlobalEnv -> GlobalEnv
 nextScope (scope, e) = (scope + 1, e)
@@ -167,24 +196,24 @@ exprLookup (scope, env) (Var vName) =
     Nothing -> do
       if scope /= 0
         then exprLookup (scope - 1, env) (Var vName)
-        else Left $ BadExpression $ "unknown var: " <> vName
-    Just 0  -> Left $ BadExpression $ "uninitialized var: " <> vName
+        else Left $ BadExpression $ "Unknown var: " <> vName
+    Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
     Just n  -> Right $ Var $ constructAddress n
 exprLookup st (Binary op' expr1' expr2') =
   Binary op' <$> exprLookup st expr1' <*> exprLookup st expr2'
 exprLookup st (Unary op' expr') = Unary op' <$> exprLookup st expr'
 exprLookup _ rest = Right rest
 
-envVarLookup :: CurrScope
+envIdLookup :: CurrScope
              -> EnvMap
              -> Name
              -> GlobalState
              -> (EbpOffset -> GlobalState)
              -> GlobalState
-envVarLookup scope env aName funcNothing funcJust =
+envIdLookup scope env aName funcNothing funcJust =
   case M.lookup (scope, aName) env of
     Nothing -> do
       if scope /= 0
-        then envVarLookup (scope - 1) env aName funcNothing funcJust
+        then envIdLookup (scope - 1) env aName funcNothing funcJust
         else funcNothing
     Just offset -> funcJust offset

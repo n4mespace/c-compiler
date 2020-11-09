@@ -4,10 +4,6 @@ import           Compiler.Syntax.Expression
 
 type Name = String
 
-data FParams a =
-  Param a Name
-  deriving (Show)
-
 data Stmt a
   = Block [Stmt a]
   | Assignment (Assignment a)
@@ -23,6 +19,10 @@ data Func a
   = CallFunc Name [FParams a]
   | DeclareFunc a Name [FParams a]
   | DefineFunc a Name [FParams a] (Stmt a)
+  deriving (Show)
+
+data FParams a =
+  Param a Name
   deriving (Show)
 
 data Assignment a
