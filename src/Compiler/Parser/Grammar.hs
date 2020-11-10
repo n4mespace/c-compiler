@@ -19,7 +19,7 @@ checkGrammar ast =
       return checkedAst
   where
     initialEnv :: GlobalEnv
-    initialEnv = (-1, M.singleton (-1, "") (0, False, [], []))
+    initialEnv = (-1, M.singleton (-1, "") (0, False, []))
 
     opts :: OutputOptions
     opts = defaultOutputOptionsDarkBg

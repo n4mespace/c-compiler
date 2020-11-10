@@ -22,7 +22,7 @@ data Func a
 
 data FParams a =
   Param a Name
-  deriving (Show, Eq)
+  deriving (Show)
 
 data Assignment a
   = Assign a Name (Stmt a)
@@ -30,3 +30,7 @@ data Assignment a
   | ValueAssign Name (Stmt a)
   | OpAssign BinOp Name (Stmt a)
   deriving (Show)
+
+instance Eq a => Eq (FParams a) where
+  Param t _ == Param t' _ = t == t'
+

@@ -45,7 +45,7 @@ type Defined = Bool
 type ScopedName = (Scope, Name)
 
 -- | Value to EnvMap
-type Env = (EbpOffset, Defined, [FParamsT], [FArgsT])
+type Env = (EbpOffset, Defined, [FParamsT])
 
 -- | Global map for extra info
 type EnvMap = Map ScopedName Env

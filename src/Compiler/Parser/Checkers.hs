@@ -13,7 +13,7 @@ checkerProgram :: StmtT -> GlobalEnv -> Either ErrT StmtT
 checkerProgram ast initialEnv = do
   (checkedAst, (_, envMap)) <- runStateT (checker ast) initialEnv
   let undefinedFunc :: EnvMap
-      undefinedFunc = M.filter (\(_, defined, _, _) -> not defined) envMap
+      undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
 
       countUndefinedFunc :: Int
       countUndefinedFunc = M.size undefinedFunc
@@ -50,7 +50,7 @@ checker code = do
               checkedExpr <- checker expr
               modify $ addIdToEnv
                        (currScope, aName)
-                       (ebpOffset, True, [], [])
+                       (ebpOffset, True, [])
               return $ Assignment $ Assign aType (constructAddress ebpOffset) checkedExpr
 
             funcJust :: Env -> GlobalState
@@ -71,7 +71,7 @@ checker code = do
             funcNothing offset = do
               modify $ addIdToEnv
                        (currScope, aName)
-                       (offset, False, [], [])
+                       (offset, False, [])
               return $ Assignment
                      $ EmptyAssign aType (constructAddress offset)
 
@@ -94,13 +94,13 @@ checker code = do
               lift $ Left $ BadExpression $ "Unknown var: " <> aName
 
             funcJust :: Env -> GlobalState
-            funcJust (_, False, _, _) = do
+            funcJust (_, False, _) = do
                 checkedExpr <- checker expr
                 modify $ addIdToEnv
                          (currScope, aName)
-                         (ebpOffset, True, [], [])
+                         (ebpOffset, True, [])
                 return $ Assignment $ ValueAssign (constructAddress ebpOffset) checkedExpr
-            funcJust (offset, _, _, _) =
+            funcJust (offset, _, _) =
                Assignment . ValueAssign (constructAddress offset)
                                      <$> checker expr
 
@@ -116,13 +116,13 @@ checker code = do
                           $ "Unknown var: " <> aName
 
             funcJust :: Env -> GlobalState
-            funcJust (_, False, _, _) = do
+            funcJust (_, False, _) = do
                 checkedExpr <- checker expr
                 modify $ addIdToEnv
                          (currScope, aName)
-                         (ebpOffset, True, [], [])
+                         (ebpOffset, True, [])
                 return $ Assignment $ OpAssign op (constructAddress ebpOffset) checkedExpr
-            funcJust (offset, _, _, _) =
+            funcJust (offset, _, _) =
               Assignment . OpAssign
                 op (constructAddress offset) <$> checker expr
 
@@ -169,13 +169,20 @@ checkerFunc g@(currScope, _) func =
         funcNothing = do
           modify $ addIdToEnv
                    (currScope, fName)
-                   (0, True, fParams, [])
+                   (0, True, fParams)
           Func <$> (DefineFunc fType fName
                 <$> checkerParams g fParams
                 <*> checker fBody)
 
         funcJust :: Env -> GlobalState
-        funcJust (_, False, _, _) = funcNothing
+        funcJust (_, False, fParams') =
+          if fParams == fParams'
+            then funcNothing
+            else
+              lift $ Left $ BadExpression
+                   $ "Different parameters in declaration " <>
+                     "and definition " <>
+                     "in function: " <> fName
         funcJust _ =
           lift $ Left $ BadExpression
                       $ "Multiple function definition: " <> fName
@@ -187,7 +194,7 @@ checkerFunc g@(currScope, _) func =
         funcNothing = do
           modify $ addIdToEnv
                    (currScope, fName)
-                   (0, False, fParams, [])
+                   (0, False, fParams)
           Func <$> (DeclareFunc fType fName
                 <$> checkerParams g fParams)
 
@@ -208,7 +215,7 @@ checkerParams _ [] = return []
 checkerParams g@(currScope, env) (p@(Param _ pName):params) = do
   modify $ addIdToEnv
            (currScope, pName)
-           (ebpOffset, True, [], [])
+           (ebpOffset, True, [])
   (p :) <$> checkerParams g params
   where
     ebpOffset :: EbpOffset
@@ -234,7 +241,7 @@ checkerExpr (currScope, envMap) v@(Var vName) =
       if currScope /= 0
         then checkerExpr (currScope - 1, envMap) v
         else Left $ BadExpression $ "Unknown var: " <> vName
-    Just (offset, defined, _, _) ->
+    Just (offset, defined, _) ->
       if defined
         then Right $ Var $ constructAddress offset
         else Left $ BadExpression $ "Uninitialized var: " <> vName
@@ -248,8 +255,13 @@ checkerExpr g@(scope, _) f@(CallFunc fName fArgs) = go g f
           if scope /= 0
             then go (currScope' - 1, envMap') f'
             else Left $ BadExpression $ "Unknown function: " <> fName
-        Just _ ->
-          CallFunc fName <$> checkerArgs g fArgs
+        Just (_, _, fParams) ->
+          if length fParams == length fArgs
+            then CallFunc fName <$> checkerArgs g fArgs
+            else
+              Left $ BadExpression
+                   $ "Wrong number of arguments in function: " <> fName <>
+                     ". Must be: " <> show (length fParams) <> " args"
 
 checkerExpr g (Binary op expr1 expr2) =
   Binary op <$> checkerExpr g expr1 <*> checkerExpr g expr2
@@ -263,17 +275,17 @@ constructAddress = ("dword ptr [ebp + " <>) . (<> "]") . show
 
 getMaxFromMap :: EnvMap -> EbpOffset
 getMaxFromMap envMap = maximum $
-  (\(offset, _, _, _) -> offset) <$> M.elems envMap
+  (\(offset, _, _) -> offset) <$> M.elems envMap
 
 addIdToEnv :: ScopedName
            -> Env
            -> GlobalEnv
            -> GlobalEnv
-addIdToEnv scopedName (offset, defined, params, args) (currScope, env) =
+addIdToEnv scopedName (offset, defined, params) (currScope, env) =
   ( currScope
   , M.insert
       scopedName
-      (offset, defined, params, args)
+      (offset, defined, params)
       env
   )
 
