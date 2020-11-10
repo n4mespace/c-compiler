@@ -22,7 +22,7 @@ data Func a
 
 data FParams a =
   Param a Name
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Assignment a
   = Assign a Name (Stmt a)

@@ -11,8 +11,8 @@ __start_main:
 	jmp __start_one
 	
 __end_one:
-	mov dword ptr [ebp + 4], eax
-	mov eax, dword ptr [ebp + 4]
+	mov dword ptr [ebp + 8], eax
+	mov eax, dword ptr [ebp + 8]
 	push eax
 	jmp __start_addOne
 	
@@ -27,7 +27,7 @@ __end_addOne:
 	jmp __end_main
 	
 __start_addOne:
-	mov eax, dword ptr [ebp + 8]
+	mov eax, dword ptr [ebp + 12]
 	push eax
 	mov eax, 1
 	pop ebx

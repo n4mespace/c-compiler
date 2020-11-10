@@ -38,8 +38,17 @@ type Scope = Int
 -- | Counter for scope depth
 type CurrScope = Int
 
--- | Map for identifiers
-type EnvMap = Map (Scope, Name) EbpOffset
+-- | Whether expr is defined
+type Defined = Bool
+
+-- | Key to EnvMap
+type ScopedName = (Scope, Name)
+
+-- | Value to EnvMap
+type Env = (EbpOffset, Defined, [FParamsT], [FArgsT])
+
+-- | Global map for extra info
+type EnvMap = Map ScopedName Env
 
 -- | Global state map
 type GlobalEnv = (CurrScope, EnvMap)
