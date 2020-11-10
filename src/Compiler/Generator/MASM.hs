@@ -39,8 +39,8 @@ class Emittable p where
 
 instance Emittable StmtT where
   emit (Block stmts) = emitBlock $ emit <$> stmts
-  emit (Func function) = emit function
-  emit (Assignment assigmnent) = emit assigmnent
+  emit (Func func) = emit func
+  emit (Assignment assign) = emit assign
   emit (Return Null) = Right ""
   emit (Return (Expr expr)) = emit expr
   emit (If (Expr cond) stmt) =

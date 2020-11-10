@@ -12,7 +12,7 @@ import qualified Data.Map.Strict                as M
 checker :: StmtT -> GlobalState
 checker code = do
   g <- get
-  let (currScope, env) = g
+  let (scope, env) = g
 
   case code of
     Func func -> checkerFunc g func
@@ -32,13 +32,13 @@ checker code = do
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
               checkedExpr <- checker expr
-              modify $ addIdToEnv (currScope, aName) offset
+              modify $ addIdToEnv (scope, aName) offset
               return $ Assignment $ Assign aType (constructAddress offset) checkedExpr
 
             funcJust :: EbpOffset -> GlobalState
             funcJust _ = do
               (updatedScope, _) <- get
-              if updatedScope < currScope
+              if updatedScope < scope
                 then funcNothing ebpOffset
                 else lift $ Left $
                     BadExpression $ "Already declared var: " <> aName
@@ -51,13 +51,13 @@ checker code = do
           where
             funcNothing :: EbpOffset -> GlobalState
             funcNothing offset = do
-              modify $ addIdToEnv (currScope, aName) offset
+              modify $ addIdToEnv (scope, aName) offset
               return $ Assignment $ EmptyAssign aType (constructAddress offset)
 
             funcJust :: EbpOffset -> GlobalState
             funcJust _ = do
               (updatedScope, _) <- get
-              if updatedScope <= currScope
+              if updatedScope <= scope
                 then
                   funcNothing ebpOffset
                 else
@@ -76,7 +76,7 @@ checker code = do
             funcJust :: EbpOffset -> GlobalState
             funcJust 0 = do
                 checkedExpr <- checker expr
-                modify $ addIdToEnv (currScope, aName) ebpOffset
+                modify $ addIdToEnv (scope, aName) ebpOffset
                 return $ Assignment $ ValueAssign (constructAddress ebpOffset) checkedExpr
             funcJust n =
                Assignment . ValueAssign (constructAddress n) <$> checker expr
@@ -94,7 +94,7 @@ checker code = do
             funcJust :: EbpOffset -> GlobalState
             funcJust 0 = do
                 checkedExpr <- checker expr
-                modify $ addIdToEnv (currScope, aName) ebpOffset
+                modify $ addIdToEnv (scope, aName) ebpOffset
                 return $ Assignment $ OpAssign op (constructAddress ebpOffset) checkedExpr
             funcJust n =
                Assignment . OpAssign op (constructAddress n) <$> checker expr
@@ -118,7 +118,7 @@ checker code = do
         Left e  -> lift $ Left e
         Right v -> return $ Expr v
 
-    Expr f@(CallFunc _ fArgs) ->
+    Expr f@(CallFunc _ _) ->
       case checkerExpr g f of
         Left e     -> lift $ Left e
         Right func -> return $ Expr func
@@ -141,9 +141,9 @@ checkerFunc g@(scope, _) func =
         funcNothing :: GlobalState
         funcNothing = do
           modify $ addIdToEnv (scope, fName) 0
-          Func <$> (DefineFunc fType fName <$>
-                    lift (checkerParams g fParams) <*>
-                    checker fBody)
+          Func <$> (DefineFunc fType fName
+                <$> checkerParams g fParams
+                <*> checker fBody)
 
         funcJust :: EbpOffset -> GlobalState
         funcJust (-1) = funcNothing
@@ -156,18 +156,24 @@ checkerFunc g@(scope, _) func =
         funcNothing :: GlobalState
         funcNothing = do
           modify $ addIdToEnv (scope, fName) (-1)
-          Func <$> (DeclareFunc fType fName <$>
-                    lift (checkerParams g fParams))
+          return $ Func $ DeclareFunc fType fName fParams
 
         funcJust :: EbpOffset -> GlobalState
         funcJust _ =
           lift $ Left $ BadExpression $ "Already declared function: " <> fName
 
 checkerArgs :: GlobalEnv -> [FArgsT] -> Either ErrT [FArgsT]
-checkerArgs _ = Right
+checkerArgs _ [] = Right []
+checkerArgs g ((Arg arg):args) =
+  (:) . Arg <$> checkerExpr g arg <*> checkerArgs g args
 
-checkerParams :: GlobalEnv -> [FParamsT] -> Either ErrT [FParamsT]
-checkerParams _ = Right
+checkerParams :: GlobalEnv
+              -> [FParamsT]
+              -> StateT GlobalEnv (Either ErrT) [FParamsT]
+checkerParams _ [] = return []
+checkerParams g@(scope, env) (p@(Param _ pName):params) = do
+  modify $ addIdToEnv (scope, pName) $ getMaxFromMap env + 4
+  (p :) <$> checkerParams g params
 
 envIdLookup :: GlobalEnv
             -> Name
@@ -191,17 +197,20 @@ checkerExpr (scope, env) v@(Var vName) =
         else Left $ BadExpression $ "Unknown var: " <> vName
     Just 0  -> Left $ BadExpression $ "Uninitialized var: " <> vName
     Just n  -> Right $ Var $ constructAddress n
-checkerExpr (scope, env) f@(CallFunc fName fArgs) =
-  case M.lookup (scope, fName) env of
-    Nothing ->
-      if scope /= 0
-        then checkerExpr (scope - 1, env) f
-        else Left $ BadExpression $ "Unknown function: " <> fName
-    Just _ -> Right f
-checkerExpr g (Binary op' expr1' expr2') =
-  Binary op' <$> checkerExpr g expr1' <*> checkerExpr g expr2'
-checkerExpr g (Unary op' expr') = Unary op' <$> checkerExpr g expr'
-checkerExpr _ rest = Right rest
+checkerExpr g@(scope, _) f@(CallFunc fName fArgs) = go g f
+  where
+    go :: GlobalEnv -> ExprT -> Either ErrT ExprT
+    go (scope', env') f' = 
+      case M.lookup (scope', fName) env' of
+        Nothing ->
+          if scope /= 0
+            then go (scope' - 1, env') f'
+            else Left $ BadExpression $ "Unknown function: " <> fName
+        Just _ -> CallFunc fName <$> checkerArgs g fArgs
+checkerExpr g (Binary op expr1 expr2) =
+  Binary op <$> checkerExpr g expr1 <*> checkerExpr g expr2
+checkerExpr g (Unary op expr) = Unary op <$> checkerExpr g expr
+checkerExpr _ expr = Right expr
 
 -- Helpers
 constructAddress :: EbpOffset -> String

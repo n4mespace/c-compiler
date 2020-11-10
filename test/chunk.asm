@@ -1,8 +1,8 @@
 	jmp __start_main
 	
-__start_two:
-	mov eax, 2
-	jmp __end_two
+__start_one:
+	mov eax, 1
+	jmp __end_one
 	
 __start_main:
 	push ebp
@@ -12,19 +12,13 @@ __start_main:
 	
 __end_one:
 	mov dword ptr [ebp + 4], eax
-	mov eax, 3
-	push eax
-	mov eax, dword ptr [ebp + 4]
-	pop ebx
-	imul ebx
-	mov dword ptr [ebp + 4], eax
 	mov eax, dword ptr [ebp + 4]
 	push eax
-	jmp __start_two
+	jmp __start_addOne
 	
-__end_two:
+__end_addOne:
 	pop ebx
-	imul ebx
+	add eax, ebx
 	
 	mov esp, ebp
 	pop ebp
@@ -32,8 +26,12 @@ __end_two:
 	mov b, eax
 	jmp __end_main
 	
-__start_one:
+__start_addOne:
+	mov eax, dword ptr [ebp + 8]
+	push eax
 	mov eax, 1
-	jmp __end_one
+	pop ebx
+	add eax, ebx
+	jmp __end_addOne
 	
 __end_main:
