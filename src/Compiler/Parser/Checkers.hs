@@ -102,18 +102,10 @@ checker code = do
             ebpOffset :: EbpOffset
             ebpOffset = getMaxFromMap env + 4
 
-    Expr (Var vName) -> do
-      envIdLookup g vName funcNothing funcJust
-      where
-        funcNothing :: GlobalState
-        funcNothing =
-          lift $ Left $ BadExpression $ "Unknown var: " <> vName
-
-        funcJust :: EbpOffset -> GlobalState
-        funcJust 0 =
-          lift $ Left $ BadExpression $ "Uninitialized var: " <> vName
-        funcJust n =
-          return $ Expr . Var $ constructAddress n
+    Expr v@(Var _) ->
+      case checkerExpr g v of
+        Left e    -> lift $ Left e
+        Right var -> return $ Expr var
 
     Expr (Binary op expr1 expr2) ->
       case Binary op <$> checkerExpr g expr1
@@ -125,18 +117,11 @@ checker code = do
       case Unary op <$> checkerExpr g expr of
         Left e  -> lift $ Left e
         Right v -> return $ Expr v
-    
-    Expr (CallFunc fName fArgs) ->
-      envIdLookup g fName funcNothing funcJust
-      where
-        funcNothing :: GlobalState
-        funcNothing =
-          lift $ Left $ BadExpression $ "Unknown func: " <> fName
 
-        funcJust :: EbpOffset -> GlobalState
-        funcJust _ =
-          Expr <$> (CallFunc fName <$>
-                    lift (checkerArgs g fArgs))
+    Expr f@(CallFunc _ fArgs) ->
+      case checkerExpr g f of
+        Left e     -> lift $ Left e
+        Right func -> return $ Expr func
 
     If expr stmt -> If <$> checker expr <*> checker stmt
 

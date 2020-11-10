@@ -90,7 +90,7 @@ instance Emittable FuncT where
     case fName of
       "main" -> emitBlock
         [ nLine
-        , emitLbl $ "__start_" <> fName
+        , emitLbl "__start_main"
         , emitNLn "push ebp"
         , emitNLn "mov ebp, esp"
         , nLine
@@ -100,7 +100,7 @@ instance Emittable FuncT where
         , emitNLn "pop ebp"
         , nLine
         , emitNLn "mov b, eax"
-        , goTo $ "__end_" <> fName
+        , goTo "__end_main"
         ]
       _ -> emitBlock
         [ nLine
