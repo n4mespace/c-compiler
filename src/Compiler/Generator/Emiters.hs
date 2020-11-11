@@ -25,8 +25,14 @@ emitLn = Right . ("\t" <>)
 emitLbl :: String -> Either ErrT String
 emitLbl = Right . ("\n" <>) . (<> ":")
 
+pop :: String -> Either ErrT String
+pop = emitNLn . ("pop " <>)
+
+popEax :: Either ErrT String
+popEax = pop "eax"
+
 popEbx :: Either ErrT String
-popEbx = emitNLn "pop ebx"
+popEbx = pop "ebx"
 
 push :: String -> Either ErrT String
 push = emitNLn . ("push " <>)
@@ -34,8 +40,11 @@ push = emitNLn . ("push " <>)
 pushEax :: Either ErrT String
 pushEax = push "eax"
 
-movToVar :: String -> Either ErrT String
-movToVar = emitNLn . ("mov " <>) . (<> ", eax")
+pushEbx :: Either ErrT String
+pushEbx = push "ebx"
+
+movTo :: String -> Either ErrT String
+movTo = emitNLn . ("mov " <>) . (<> ", eax")
 
 -- Basic math functions
 subOp :: Either ErrT String
@@ -121,5 +130,6 @@ addMainFuncCall emitedProgram =
     , nLine
     , emitLbl "__start_program"
     , emitNLn "call __func_main"
+    , emitNLn "mov b, eax"
     , nLine
     ]

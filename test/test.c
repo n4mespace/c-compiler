@@ -1,14 +1,14 @@
-int addOne(int g);
+int add(int a, int b);
 
-int one() {
-    return 1;
+int two() {
+    return 2;
 }
 
 int main() {    
-    int a = one();
-    return addOne(a) + a;
+    int a = two();
+    return add(a * a, a * a) + a;
 }
 
-int addOne(int g) { 
-    return 1 + g;
+int add(int g, int t) { 
+    return g - t;
 }

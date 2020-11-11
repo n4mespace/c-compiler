@@ -86,7 +86,7 @@ instance Emittable StmtT where
 
 instance Emittable FuncT where
   emit DeclareFunc {} = Right ""
-  emit (DefineFunc _ fName fParams stmts) =
+  emit (DefineFunc _ fName _ stmts) =
     emitBlock
       [ nLine
       , emitLbl $ "__func_" <> fName
@@ -97,32 +97,31 @@ instance Emittable FuncT where
       , nLine
       , emitNLn "mov esp, ebp"
       , emitNLn "pop ebp"
-      , emitNLn $ "ret " <> show (length fParams * 4)
+      , emitNLn "ret"
       ]
 
 
 instance Emittable AssignmentT where
-  emit (Assign _ name (Expr expr)) =
-    emitBlock
-      [ emit expr
-      , movToVar name
-      ]
-  emit (ValueAssign name (Expr expr)) =
-    emitBlock
-      [ emit expr
-      , movToVar name
-      ]
+  emit (Assign _ name (Expr expr)) = emit expr <$*> movTo name
+  emit (ValueAssign name (Expr expr)) = emit expr <$*> movTo name
   emit (EmptyAssign _ _) = Right ""
   emit (OpAssign op name (Expr expr)) =
-    emit $ Assign INT_T name $ Expr $ Binary op (Var name) expr
+    emit $ Assign INT_T name
+         $ Expr $ Binary op (Var name) expr
   emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
 
 
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
-  emit (CallFunc fName fArgs) = emit fArgs
-                           <$*> emitNLn ("call " <> fName)
+  emit (CallFunc fName fArgs) =
+    if null fArgs
+      then emit (reverse fArgs) <$*> emitNLn ("call " <> fName)
+      else emitBlock
+        [ emit (reverse fArgs)
+        , emitNLn ("call " <> fName)
+        , emitNLn $ "add esp, " <> show (length fArgs * 4)
+        ]
   emit (Unary op expr) =
     case op of
       Neg        -> emit expr <$*> negOp

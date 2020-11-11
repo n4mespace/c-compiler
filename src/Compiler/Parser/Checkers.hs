@@ -12,18 +12,20 @@ import qualified Data.Map.Strict                as M
 checkerProgram :: StmtT -> GlobalEnv -> Either ErrT StmtT
 checkerProgram ast initialEnv = do
   (checkedAst, (_, envMap)) <- runStateT (checker ast) initialEnv
-  let undefinedFunc :: EnvMap
-      undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
+  let
+    undefinedFunc :: EnvMap
+    undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
 
-      countUndefinedFunc :: Int
-      countUndefinedFunc = M.size undefinedFunc
-
-  if countUndefinedFunc == 1
-    then return checkedAst
-    else Left $ BadExpression
-              $ "Found undefined functions:" <>
-                 concatMap (\(_, name) -> name <> " ")
-                           (M.keys undefinedFunc)
+  case envMap M.!? (0, "main") of
+    Nothing -> Left $ BadExpression
+                    $ "Cannot find main function"
+    Just _ -> 
+      if M.size undefinedFunc == 1
+        then return checkedAst
+        else Left $ BadExpression
+                  $ "Found undefined functions:" <>
+                    concatMap (\(_, name) -> name <> " ")
+                              (M.keys undefinedFunc)
 
 checker :: StmtT -> GlobalState
 checker code = do
@@ -195,8 +197,7 @@ checkerFunc g@(currScope, _) func =
           modify $ addIdToEnv
                    (currScope, fName)
                    (0, False, fParams)
-          Func <$> (DeclareFunc fType fName
-                <$> checkerParams g fParams)
+          return $ Func $ DeclareFunc fType fName fParams
 
         funcJust :: Env -> GlobalState
         funcJust _ =
@@ -219,7 +220,7 @@ checkerParams g@(currScope, _) ((Param t pName):params) = do
   (Param t (constructAddress ebpOffset) :) <$> checkerParams g params
   where
     ebpOffset :: EbpOffset
-    ebpOffset = - (length params + 2) * 4
+    ebpOffset = (length params + 2) * (-4)
 
 envIdLookup :: GlobalEnv
             -> Name
@@ -272,7 +273,7 @@ checkerExpr _ expr = Right expr
 -- Helpers
 constructAddress :: EbpOffset -> String
 constructAddress offset =
-  if offset > 0 
+  if offset > 0
     then "dword ptr [ebp - " <> show offset <> "]"
     else "dword ptr [ebp + " <> show (offset * (-1)) <> "]"
 
