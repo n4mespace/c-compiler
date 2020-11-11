@@ -85,18 +85,18 @@ instance Emittable StmtT where
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
 instance Emittable FuncT where
-  emit DeclareFunc {} = Right ""
   emit (DefineFunc _ fName _ fBody@(Block stmts)) =
     emitBlock
       [ nLine
       , emitLbl $ "__func_" <> fName
-      , emitNLn $ "enter " <> show (length stmts * 3) <> ", 0"
+      , emitNLn $ "enter " <> show (length stmts * 4) <> ", 0"
       , nLine
       , emit fBody
       , nLine
       , emitNLn "leave"
       , emitNLn "ret"
       ]
+  emit _ = Right ""
 
 
 instance Emittable AssignmentT where

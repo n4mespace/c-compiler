@@ -1,16 +1,22 @@
-// int add(int a, int b);
+int addTwoIfFlag(int value, bool flag);
+int addOne(int value);
 
-// int two() {
-//     return 2;
-// }
-
-int main() {    
-    int a = 4;
-    int b = 4;
-    a = a % (b - 1);
-    return a;
+int main() {
+    bool flag = true;
+    char ch = 'c';
+    int a = addOne(8);
+    int b = addTwoIfFlag(a * 2, flag);
+    return addTwoIfFlag(ch + 1, !flag);
 }
 
-// int add(int g, int t) { 
-//     return g - t;
-// }
+int addOne(int v) {
+    return v + 1;
+}
+
+int addTwoIfFlag(int v, bool f) {
+    if (f) {
+        return v;
+    } else {
+        return v + 2;
+    }
+}

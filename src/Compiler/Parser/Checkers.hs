@@ -17,9 +17,8 @@ checkerProgram ast initialEnv = do
     undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
 
   case envMap M.!? (0, "main") of
-    Nothing -> Left $ BadExpression
-                    $ "Cannot find main function"
-    Just _ -> 
+    Nothing -> Left $ BadExpression "Cannot find main function"
+    Just _ ->
       if M.size undefinedFunc == 1
         then return checkedAst
         else Left $ BadExpression
@@ -39,7 +38,7 @@ checker code = do
       withScope $
         case block of
           []  -> lift $ Left BadReturn
-          [s] -> checker s
+          [s] -> Block . (: []) <$> checker s
           ss  -> Block <$> traverse checker ss
 
     Assignment assignment ->
