@@ -1,14 +1,16 @@
-int add(int a, int b);
+// int add(int a, int b);
 
-int two() {
-    return 2;
-}
+// int two() {
+//     return 2;
+// }
 
 int main() {    
-    int a = two();
-    return add(a * a, a * a) + a;
+    int a = 4;
+    int b = 4;
+    a = a % (b - 1);
+    return a;
 }
 
-int add(int g, int t) { 
-    return g - t;
-}
+// int add(int g, int t) { 
+//     return g - t;
+// }

@@ -86,17 +86,15 @@ instance Emittable StmtT where
 
 instance Emittable FuncT where
   emit DeclareFunc {} = Right ""
-  emit (DefineFunc _ fName _ stmts) =
+  emit (DefineFunc _ fName _ fBody@(Block stmts)) =
     emitBlock
       [ nLine
       , emitLbl $ "__func_" <> fName
-      , emitNLn "push ebp"
-      , emitNLn "mov ebp, esp"
+      , emitNLn $ "enter " <> show (length stmts * 3) <> ", 0"
       , nLine
-      , emit stmts
+      , emit fBody
       , nLine
-      , emitNLn "mov esp, ebp"
-      , emitNLn "pop ebp"
+      , emitNLn "leave"
       , emitNLn "ret"
       ]
 
@@ -106,7 +104,7 @@ instance Emittable AssignmentT where
   emit (ValueAssign name (Expr expr)) = emit expr <$*> movTo name
   emit (EmptyAssign _ _) = Right ""
   emit (OpAssign op name (Expr expr)) =
-    emit $ Assign INT_T name
+    emit $ ValueAssign name
          $ Expr $ Binary op (Var name) expr
   emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
 

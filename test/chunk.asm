@@ -1,57 +1,28 @@
 
 	jmp __start_program
 	
-__func_two:
-	push ebp
-	mov ebp, esp
-	
-	mov eax, 2
-	
-	mov esp, ebp
-	pop ebp
-	ret
-	
 __func_main:
-	push ebp
-	mov ebp, esp
+	enter 12, 0
 	
-	call two
+	mov eax, 4
 	mov dword ptr [ebp - 4], eax
-	mov eax, dword ptr [ebp - 4]
+	mov eax, 4
+	mov dword ptr [ebp - 8], eax
+	mov eax, 1
 	push eax
-	mov eax, dword ptr [ebp - 4]
-	push eax
-	mov eax, dword ptr [ebp - 4]
-	pop ebx
-	imul ebx
-	push eax
-	mov eax, dword ptr [ebp - 4]
-	push eax
-	mov eax, dword ptr [ebp - 4]
-	pop ebx
-	imul ebx
-	push eax
-	call add
-	add esp, 8
-	pop ebx
-	add eax, ebx
-	
-	mov esp, ebp
-	pop ebp
-	ret
-	
-__func_add:
-	push ebp
-	mov ebp, esp
-	
-	mov eax, dword ptr [ebp + 8]
-	push eax
-	mov eax, dword ptr [ebp + 12]
+	mov eax, dword ptr [ebp - 8]
 	pop ebx
 	sub eax, ebx
+	push eax
+	mov eax, dword ptr [ebp - 4]
+	pop ebx
+	xor edx, edx
+	div ebx
+	mov eax, edx
+	mov dword ptr [ebp - 4], eax
+	mov eax, dword ptr [ebp - 4]
 	
-	mov esp, ebp
-	pop ebp
+	leave
 	ret
 	
 __start_program:
