@@ -1,5 +1,5 @@
 
-	jmp __one_end
+	jmp __start_program
 	
 __func_one:
 	push ebp
@@ -11,19 +11,14 @@ __func_one:
 	pop ebp
 	ret 0
 	
-__one_end:
-	jmp __main_end
-	
 __func_main:
 	push ebp
 	mov ebp, esp
-	
 	
 	call one
 	mov dword ptr [ebp - 4], eax
 	mov eax, dword ptr [ebp - 4]
 	push eax
-	
 	mov eax, dword ptr [ebp - 4]
 	push eax
 	call addOne
@@ -33,9 +28,6 @@ __func_main:
 	mov esp, ebp
 	pop ebp
 	ret 0
-	
-__main_end:
-	jmp __addOne_end
 	
 __func_addOne:
 	push ebp
@@ -51,7 +43,6 @@ __func_addOne:
 	pop ebp
 	ret 4
 	
-__addOne_end:
-	
+__start_program:
 	call __func_main
 	

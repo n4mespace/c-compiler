@@ -88,8 +88,7 @@ instance Emittable FuncT where
   emit DeclareFunc {} = Right ""
   emit (DefineFunc _ fName fParams stmts) =
     emitBlock
-      [ goTo $ "__" <> fName <> "_end"
-      , nLine
+      [ nLine
       , emitLbl $ "__func_" <> fName
       , emitNLn "push ebp"
       , emitNLn "mov ebp, esp"
@@ -99,8 +98,6 @@ instance Emittable FuncT where
       , emitNLn "mov esp, ebp"
       , emitNLn "pop ebp"
       , emitNLn $ "ret " <> show (length fParams * 4)
-      , nLine
-      , emitLbl $ "__" <> fName <> "_end"
       ]
 
 
@@ -124,12 +121,8 @@ instance Emittable AssignmentT where
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
-  emit (CallFunc fName fArgs) =
-    emitBlock
-      [ nLine
-      , emit fArgs
-      , emitNLn $ "call " <> fName
-      ]
+  emit (CallFunc fName fArgs) = emit fArgs
+                           <$*> emitNLn ("call " <> fName)
   emit (Unary op expr) =
     case op of
       Neg        -> emit expr <$*> negOp

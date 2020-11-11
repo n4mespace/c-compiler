@@ -116,8 +116,10 @@ getRandomLbl gen =
 addMainFuncCall :: Either ErrT String -> Either ErrT String
 addMainFuncCall emitedProgram =
   emitBlock
-    [ emitedProgram
+    [ goTo "__start_program"
+    , emitedProgram
     , nLine
+    , emitLbl "__start_program"
     , emitNLn "call __func_main"
     , nLine
     ]
