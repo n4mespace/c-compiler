@@ -21,6 +21,7 @@ generateFile destination program =
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       destination `writeFile` asm
+      putStrLn "Press ENTER to exit..." <* getLine
     Left e -> print e >> fail "asm gen error"
 
 generateString :: StmtT -> IO String
