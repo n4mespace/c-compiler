@@ -6,17 +6,17 @@ data Expr a
   | Binary BinOp (Expr a) (Expr a)
   | Unary UnOp (Expr a)
   | CallFunc String [FArgs a]
-  deriving (Show, Eq)
+  deriving (Show)
 
 newtype FArgs a =
   Arg (Expr a)
-  deriving (Show, Eq)
+  deriving (Show)
 
 data C
   = INT Integer
   | CHAR Char
   | BOOL Bool
-  deriving (Show, Eq)
+  deriving (Show)
 
 data BinOp
   = Add
@@ -29,10 +29,10 @@ data BinOp
   | Greater
   | Less
   | Equal
-  deriving (Show, Eq)
+  deriving (Show)
 
 data UnOp
   = Neg
   | Not
   | Complement
-  deriving (Show, Eq)
+  deriving (Show)

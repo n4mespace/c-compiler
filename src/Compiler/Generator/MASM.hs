@@ -16,7 +16,7 @@ import           System.Random              (newStdGen)
 
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program =
-  case addMainFuncLbl (emit program) of
+  case addMainFuncCall (emit program) of
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
@@ -25,7 +25,7 @@ generateFile destination program =
 
 generateString :: StmtT -> IO String
 generateString program =
-  case addMainFuncLbl (emit program) of
+  case addMainFuncCall (emit program) of
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
@@ -38,7 +38,7 @@ class Emittable p where
   {-# MINIMAL emit #-}
 
 instance Emittable StmtT where
-  emit (Block stmts) = emitBlock $ emit <$> stmts
+  emit (Block stmts) = emit stmts
   emit (Func func) = emit func
   emit (Assignment assign) = emit assign
   emit (Return Null) = Right ""
@@ -86,28 +86,22 @@ instance Emittable StmtT where
 
 instance Emittable FuncT where
   emit DeclareFunc {} = Right ""
-  emit (DefineFunc _ fName _ stmts) =
-    case fName of
-      "main" -> emitBlock
-        [ nLine
-        , emitLbl "__start_main"
-        , emitNLn "push ebp"
-        , emitNLn "mov ebp, esp"
-        , nLine
-        , emit stmts
-        , nLine
-        , emitNLn "mov esp, ebp"
-        , emitNLn "pop ebp"
-        , nLine
-        , emitNLn "mov b, eax"
-        , goTo "__end_main"
-        ]
-      _ -> emitBlock
-        [ nLine
-        , emitLbl $ "__start_" <> fName
-        , emit stmts
-        , goTo $ "__end_" <> fName
-        ]
+  emit (DefineFunc _ fName fParams stmts) =
+    emitBlock
+      [ goTo $ "__" <> fName <> "_end"
+      , nLine
+      , emitLbl $ "__func_" <> fName
+      , emitNLn "push ebp"
+      , emitNLn "mov ebp, esp"
+      , nLine
+      , emit stmts
+      , nLine
+      , emitNLn "mov esp, ebp"
+      , emitNLn "pop ebp"
+      , emitNLn $ "ret " <> show (length fParams * 4)
+      , nLine
+      , emitLbl $ "__" <> fName <> "_end"
+      ]
 
 
 instance Emittable AssignmentT where
@@ -130,11 +124,11 @@ instance Emittable AssignmentT where
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
-  emit (CallFunc fName fParams) =
+  emit (CallFunc fName fArgs) =
     emitBlock
-      [ goTo $ "__start_" <> fName
-      , nLine
-      , emitLbl $ "__end_" <> fName
+      [ nLine
+      , emit fArgs
+      , emitNLn $ "call " <> fName
       ]
   emit (Unary op expr) =
     case op of
@@ -162,6 +156,12 @@ instance Emittable ExprT where
         , popEbx
         , f
         ]
+
+instance Emittable a => Emittable [a] where
+  emit = emitBlock . (emit <$>)
+
+instance Emittable FArgsT where
+  emit (Arg expr) = emit expr <$*> pushEax
 
 instance Emittable C where
   emit (INT i) = Right $ show i

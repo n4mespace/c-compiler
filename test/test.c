@@ -9,6 +9,6 @@ int main() {
     return addOne(a) + a;
 }
 
-int addOne(int g) {
+int addOne(int g) { 
     return 1 + g;
 }

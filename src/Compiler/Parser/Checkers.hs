@@ -212,14 +212,14 @@ checkerParams :: GlobalEnv
               -> [FParamsT]
               -> StateT GlobalEnv (Either ErrT) [FParamsT]
 checkerParams _ [] = return []
-checkerParams g@(currScope, env) (p@(Param _ pName):params) = do
+checkerParams g@(currScope, _) ((Param t pName):params) = do
   modify $ addIdToEnv
            (currScope, pName)
            (ebpOffset, True, [])
-  (p :) <$> checkerParams g params
+  (Param t (constructAddress ebpOffset) :) <$> checkerParams g params
   where
     ebpOffset :: EbpOffset
-    ebpOffset = getMaxFromMap env + 4
+    ebpOffset = - (length params + 2) * 4
 
 envIdLookup :: GlobalEnv
             -> Name
@@ -271,7 +271,10 @@ checkerExpr _ expr = Right expr
 
 -- Helpers
 constructAddress :: EbpOffset -> String
-constructAddress = ("dword ptr [ebp + " <>) . (<> "]") . show
+constructAddress offset =
+  if offset > 0 
+    then "dword ptr [ebp - " <> show offset <> "]"
+    else "dword ptr [ebp + " <> show (offset * (-1)) <> "]"
 
 getMaxFromMap :: EnvMap -> EbpOffset
 getMaxFromMap envMap = maximum $

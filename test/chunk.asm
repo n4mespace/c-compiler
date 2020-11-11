@@ -1,37 +1,57 @@
-	jmp __start_main
+
+	jmp __one_end
 	
-__start_one:
-	mov eax, 1
-	jmp __end_one
-	
-__start_main:
+__func_one:
 	push ebp
 	mov ebp, esp
 	
-	jmp __start_one
+	mov eax, 1
 	
-__end_one:
-	mov dword ptr [ebp + 8], eax
-	mov eax, dword ptr [ebp + 8]
+	mov esp, ebp
+	pop ebp
+	ret 0
+	
+__one_end:
+	jmp __main_end
+	
+__func_main:
+	push ebp
+	mov ebp, esp
+	
+	
+	call one
+	mov dword ptr [ebp - 4], eax
+	mov eax, dword ptr [ebp - 4]
 	push eax
-	jmp __start_addOne
 	
-__end_addOne:
+	mov eax, dword ptr [ebp - 4]
+	push eax
+	call addOne
 	pop ebx
 	add eax, ebx
 	
 	mov esp, ebp
 	pop ebp
+	ret 0
 	
-	mov b, eax
-	jmp __end_main
+__main_end:
+	jmp __addOne_end
 	
-__start_addOne:
-	mov eax, dword ptr [ebp + 12]
+__func_addOne:
+	push ebp
+	mov ebp, esp
+	
+	mov eax, dword ptr [ebp + 8]
 	push eax
 	mov eax, 1
 	pop ebx
 	add eax, ebx
-	jmp __end_addOne
 	
-__end_main:
+	mov esp, ebp
+	pop ebp
+	ret 4
+	
+__addOne_end:
+	
+	call __func_main
+	

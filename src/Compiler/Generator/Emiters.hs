@@ -28,8 +28,11 @@ emitLbl = Right . ("\n" <>) . (<> ":")
 popEbx :: Either ErrT String
 popEbx = emitNLn "pop ebx"
 
+push :: String -> Either ErrT String
+push = emitNLn . ("push " <>)
+
 pushEax :: Either ErrT String
-pushEax = emitNLn "push eax"
+pushEax = push "eax"
 
 movToVar :: String -> Either ErrT String
 movToVar = emitNLn . ("mov " <>) . (<> ", eax")
@@ -110,11 +113,11 @@ getRandomLbl :: IO StdGen -> String
 getRandomLbl gen =
   "__" <> take 6 (randomRs ('a','z') $ unsafePerformIO gen)
 
-addMainFuncLbl :: Either ErrT String -> Either ErrT String
-addMainFuncLbl emitedProgram =
+addMainFuncCall :: Either ErrT String -> Either ErrT String
+addMainFuncCall emitedProgram =
   emitBlock
-    [ emitLn "jmp __start_main"
-    , emitedProgram
+    [ emitedProgram
     , nLine
-    , emitLbl "__end_main"
+    , emitNLn "call __func_main"
+    , nLine
     ]
