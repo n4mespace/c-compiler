@@ -1,5 +1,6 @@
 module Compiler.Lexer.LanguageDefinition where
 
+import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
 import           Compiler.Types
 
@@ -33,9 +34,6 @@ reservedCNames =
   , "bool"
   , "while"
   , "for"
-  , "&"
-  , "|"
-  , "!"
   , "return"
   , "if"
   , "else"
@@ -46,7 +44,26 @@ reservedCNames =
 
 reservedCOpNames :: [String]
 reservedCOpNames =
-  ["+", "-", "*", "/", "=", "!=", "%", "<", ">", "==", "&", "|", "!", "~"]
+  [ "+"
+  , "-"
+  , "*"
+  , "/"
+  , "%"
+  , "="
+  , "%="
+  , "+="
+  , "-="
+  , "*="
+  , "/="
+  , "!="
+  , "<"
+  , ">"
+  , "=="
+  , "&"
+  , "|"
+  , "!"
+  , "~"
+  ]
 
 lexer :: Tok.GenTokenParser String () Identity
 lexer = Tok.makeTokenParser langDefC
@@ -106,9 +123,49 @@ binaryInteger =
     binToDec 0 = 0
     binToDec i = 2 * binToDec (div i 10) + mod i 10
 
--- | Match operators and terms into expression
-expression :: Parser ExprT
-expression = buildExpressionParser operators terms
+-- | Boolean true
+booleanTrue :: ParsecT String () Identity ExprT
+booleanTrue = do
+  reserved "true"
+  return $ Const . BOOL $ True
+
+-- | Boolean false
+booleanFalse :: ParsecT String () Identity ExprT
+booleanFalse = do
+  reserved "false"
+  return $ Const . BOOL $ False
+
+-- | Boolean false or true
+constBool :: ParsecT String () Identity ExprT
+constBool =
+  try booleanTrue <|>
+  try booleanFalse
+
+-- | Bin and dec int values (also char converted to ascii)
+constInt :: ParsecT String () Identity ExprT
+constInt =
+  try (Const . INT <$> binaryInteger) <|>
+  try (Const . INT <$> integer) <|>
+  try (Const . INT . fromIntegral . fromEnum <$> singleChar)
+
+-- | Identifier name
+var :: ParsecT String () Identity ExprT
+var = Var <$> identifier
+
+-- | Function call
+callFunc :: ParsecT String () Identity ExprT
+callFunc = do
+  name <- identifier
+  args <- parens $ commaSep funcArg
+  return $ CallFunc name args
+
+-- | Expression with ; at the end
+simpleExpr :: Parser StmtT
+simpleExpr = (Expr <$> expression) <* semi
+
+-- | Function arguments
+funcArg :: Parser FArgsT
+funcArg = Arg <$> expression
 
 -- | Operator table
 operators :: [[Operator Char () ExprT]]
@@ -135,9 +192,11 @@ operators =
 terms :: ParsecT String () Identity ExprT
 terms =
   parens expression <|>
-  try (Var <$> identifier) <|>
-  try (Const . INT <$> binaryInteger) <|>
-  try (Const . INT <$> integer) <|>
-  try (Const . INT . fromIntegral . fromEnum <$> singleChar) <|>
-  try (reserved "true" >> return (Const . BOOL $ True)) <|>
-  try (reserved "false" >> return (Const . BOOL $ False)) <?> "constant arythmetic term"
+  try callFunc <|>
+  try var <|>
+  try constInt <|>
+  try constBool <?> "constant arythmetic term"
+
+-- | Match operators and terms into expression
+expression :: Parser ExprT
+expression = buildExpressionParser operators terms

@@ -15,17 +15,18 @@ import           Compiler.Types
 import           System.Random              (newStdGen)
 
 generateFile :: FilePath -> StmtT -> IO ()
-generateFile destination program = do
-  case emit program of
+generateFile destination program =
+  case addMainFuncCall (emit program) of
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       destination `writeFile` asm
+      putStrLn "Press ENTER to exit..." <* getLine
     Left e -> print e >> fail "asm gen error"
 
 generateString :: StmtT -> IO String
 generateString program =
-  case emit program of
+  case addMainFuncCall (emit program) of
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
@@ -38,28 +39,11 @@ class Emittable p where
   {-# MINIMAL emit #-}
 
 instance Emittable StmtT where
-  emit (Block stmts) = emitBlock $ emit <$> stmts
-  emit (Func _ _ _ stmts) =
-    emitBlock
-      [ emitLn "push ebp"
-      , emitNLn "mov ebp, esp"
-      , nLine
-      , emit stmts
-      , nLine
-      , emitLbl "__ret"
-      , emitNLn "mov esp, ebp"
-      , emitNLn "pop ebp"
-      , nLine
-      , emitNLn "mov b, eax"
-      ]
-  emit (Assign _ name (Expr expr)) =
-    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
-  emit (ValueAssign name (Expr expr)) =
-    emitBlock [emit expr, emitNLn $ "mov " <> name <> ", eax"]
-  emit (EmptyAssign _ _) = Right ""
-  emit (Return Null) = goToReturn
+  emit (Block stmts) = emit stmts
+  emit (Func func) = emit func
+  emit (Assignment assign) = emit assign
+  emit (Return Null) = Right ""
   emit (Return (Expr expr)) = emit expr
-                         <$*> goToReturn
   emit (If (Expr cond) stmt) =
     emitBlock
       [ nLine
@@ -101,9 +85,42 @@ instance Emittable StmtT where
   emit (Expr expr) = emit expr
   emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
 
+instance Emittable FuncT where
+  emit (DefineFunc _ fName _ fBody@(Block stmts)) =
+    emitBlock
+      [ nLine
+      , emitLbl $ "__func_" <> fName
+      , emitNLn $ "enter " <> show (length stmts * 4) <> ", 0"
+      , nLine
+      , emit fBody
+      , nLine
+      , emitNLn "leave"
+      , emitNLn "ret"
+      ]
+  emit _ = Right ""
+
+
+instance Emittable AssignmentT where
+  emit (Assign _ name (Expr expr)) = emit expr <$*> movTo name
+  emit (ValueAssign name (Expr expr)) = emit expr <$*> movTo name
+  emit (EmptyAssign _ _) = Right ""
+  emit (OpAssign op name (Expr expr)) =
+    emit $ ValueAssign name
+         $ Expr $ Binary op (Var name) expr
+  emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
+
+
 instance Emittable ExprT where
   emit (Var name) = emitNLn $ "mov eax, " <> name
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
+  emit (CallFunc fName fArgs) =
+    if null fArgs
+      then emit (reverse fArgs) <$*> emitNLn ("call " <> fName)
+      else emitBlock
+        [ emit (reverse fArgs)
+        , emitNLn ("call " <> fName)
+        , emitNLn $ "add esp, " <> show (length fArgs * 4)
+        ]
   emit (Unary op expr) =
     case op of
       Neg        -> emit expr <$*> negOp
@@ -130,6 +147,12 @@ instance Emittable ExprT where
         , popEbx
         , f
         ]
+
+instance Emittable a => Emittable [a] where
+  emit = emitBlock . (emit <$>)
+
+instance Emittable FArgsT where
+  emit (Arg expr) = emit expr <$*> pushEax
 
 instance Emittable C where
   emit (INT i) = Right $ show i

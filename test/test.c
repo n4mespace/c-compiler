@@ -1,9 +1,22 @@
+int addTwoIfFlag(int value, bool flag);
+int addOne(int value);
+
 int main() {
-    int b = 0;
-    if (true) {
-        b = b + 13;
+    bool flag = true;
+    char ch = 'c';
+    int a = addOne(8);
+    int b = addTwoIfFlag(a * 2, flag);
+    return addTwoIfFlag(ch + 1, !flag);
+}
+
+int addOne(int v) {
+    return v + 1;
+}
+
+int addTwoIfFlag(int v, bool f) {
+    if (f) {
+        return v;
     } else {
-        b = b + 2;
+        return v + 2;
     }
-    return b;
 }

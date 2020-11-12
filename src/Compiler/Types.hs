@@ -1,8 +1,8 @@
 module Compiler.Types where
 
-import           Compiler.Syntax.Control        (FParams, Name, Stmt)
+import           Compiler.Syntax.Control
 import           Compiler.Syntax.Error          (Err)
-import           Compiler.Syntax.Expression     (Expr)
+import           Compiler.Syntax.Expression
 
 import           Control.Monad.Trans.State.Lazy (StateT)
 import           Data.Map.Strict                (Map)
@@ -21,6 +21,12 @@ type ExprT = Expr Type
 
 type FParamsT = FParams Type
 
+type FArgsT = FArgs Type
+
+type FuncT = Func Type
+
+type AssignmentT = Assignment Type
+
 type ErrT = Err Type
 
 -- | Counter for variable address generation
@@ -32,8 +38,17 @@ type Scope = Int
 -- | Counter for scope depth
 type CurrScope = Int
 
--- | Map for identifiers
-type EnvMap = Map (Scope, Name) EbpOffset
+-- | Whether expr is defined
+type Defined = Bool
+
+-- | Key to EnvMap
+type ScopedName = (Scope, Name)
+
+-- | Value to EnvMap
+type Env = (EbpOffset, Defined, [FParamsT])
+
+-- | Global map for extra info
+type EnvMap = Map ScopedName Env
 
 -- | Global state map
 type GlobalEnv = (CurrScope, EnvMap)

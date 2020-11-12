@@ -5,13 +5,18 @@ data Expr a
   | Const C
   | Binary BinOp (Expr a) (Expr a)
   | Unary UnOp (Expr a)
+  | CallFunc String [FArgs a]
+  deriving (Show)
+
+newtype FArgs a =
+  Arg (Expr a)
   deriving (Show)
 
 data C
   = INT Integer
   | CHAR Char
   | BOOL Bool
-  deriving (Show, Eq)
+  deriving (Show)
 
 data BinOp
   = Add

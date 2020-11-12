@@ -2,6 +2,7 @@ module Compiler.Lexer.Items where
 
 import           Compiler.Lexer.LanguageDefinition
 import           Compiler.Syntax.Control
+import           Compiler.Syntax.Expression        (BinOp (..))
 import           Compiler.Types
 
 import           Data.Functor.Identity             (Identity)
@@ -22,14 +23,12 @@ statements = do
 
 statement' :: Parser StmtT
 statement' =
-  try funcStmt <|>
   try returnStmt <|>
   try ifElseStmt <|>
   try ifStmt <|>
-  try assignStmt <|>
-  try emptyAssignStmt <|>
-  try assignValue <|>
+  try assignmentStmt <|>
   try simpleExpr <|>
+  try funcStmt <|>
   try blockOfStmts
 
 blockOfStmts :: ParsecT String () Identity StmtT
@@ -51,14 +50,18 @@ ifStmt = do
   stmt <- blockOfStmts
   return $ If (Expr cond) stmt
 
-simpleExpr :: Parser StmtT
-simpleExpr = Expr <$> expression <* semi
-
 returnStmt :: Parser StmtT
 returnStmt = do
   reserved "return"
   expr <- simpleExpr <|> (Null <$ semi)
   return $ Return expr
+
+assignmentStmt :: Parser StmtT
+assignmentStmt =
+  try assignStmt <|>
+  try emptyAssignStmt <|>
+  try assignValueStmt <|>
+  try opAssignStmt <?> "Assingment"
 
 assignStmt :: Parser StmtT
 assignStmt = do
@@ -66,20 +69,36 @@ assignStmt = do
   varName <- identifier
   reservedOp "="
   expr <- simpleExpr
-  return $ Assign typeOfVar varName expr
+  return $ Assignment $ Assign typeOfVar varName expr
 
 emptyAssignStmt :: Parser StmtT
 emptyAssignStmt = do
   typeOfVar <- typeOfExpr
-  varName <- identifier <* semi
-  return $ EmptyAssign typeOfVar varName
+  varName <- identifier
+  _ <- semi
+  return $ Assignment $ EmptyAssign typeOfVar varName
 
-assignValue :: Parser StmtT
-assignValue = do
+assignValueStmt :: Parser StmtT
+assignValueStmt = do
   varName <- identifier
   reservedOp "="
   expr <- simpleExpr
-  return $ ValueAssign varName expr
+  return $ Assignment $ ValueAssign varName expr
+
+opAssignStmt :: Parser StmtT
+opAssignStmt = do
+  varName <- identifier
+  op <- typeOfAssignOp
+  expr <- simpleExpr
+  return $ Assignment $ OpAssign op varName expr
+
+typeOfAssignOp :: Parser BinOp
+typeOfAssignOp =
+  (reservedOp "%=" >> return Mod) <|>
+  (reservedOp "+=" >> return Add) <|>
+  (reservedOp "-=" >> return Subtract) <|>
+  (reservedOp "*=" >> return Multiply) <|>
+  (reservedOp "/=" >> return Divide) <?> "Assign operator"
 
 typeOfExpr :: Parser Type
 typeOfExpr =
@@ -94,9 +113,22 @@ funcParam = do
   return $ Param typeOfP name
 
 funcStmt :: Parser StmtT
-funcStmt = do
-  typeOfF <- typeOfExpr
+funcStmt =
+  try declareFuncStmt <|>
+  try defineFuncStmt <?> "Function declaration | definition"
+
+declareFuncStmt :: Parser StmtT
+declareFuncStmt = do
+  typeOfFunc <- typeOfExpr
   name <- identifier
-  params <- parens (commaSep funcParam) <|> return []
+  params <- parens $ commaSep funcParam
+  _ <- semi
+  return $ Func $ DeclareFunc typeOfFunc name params
+
+defineFuncStmt :: Parser StmtT
+defineFuncStmt = do
+  typeOfFunc <- typeOfExpr
+  name <- identifier
+  params <- parens $ commaSep funcParam
   body <- blockOfStmts
-  return $ Func typeOfF name params body
+  return $ Func $ DefineFunc typeOfFunc name params body
