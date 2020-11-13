@@ -58,4 +58,4 @@ type EnvMap = Map ScopedName Env
 type GlobalEnv = (CurrScope, EnvMap)
 
 -- | Global state for grammar check
-type GlobalState = StateT GlobalEnv (Either ErrT) StmtT
+type GlobalState a = StateT GlobalEnv (Either ErrT) a
