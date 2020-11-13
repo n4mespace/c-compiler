@@ -6,6 +6,8 @@ import           Compiler.Syntax.Expression        (BinOp (..))
 import           Compiler.Types
 
 import           Data.Functor.Identity             (Identity)
+import           Data.List                         (elemIndex)
+import           Data.Maybe                        (fromJust)
 import           Text.Parsec.Prim                  (ParsecT)
 import           Text.ParserCombinators.Parsec
 
@@ -22,17 +24,22 @@ statements = do
       _ -> Block list
 
 statement' :: Parser StmtT
-statement' =
-  try returnStmt <|>
-  try ifElseStmt <|>
-  try ifStmt <|>
-  try assignmentStmt <|>
-  try simpleExpr <|>
-  try funcStmt <|>
-  try blockOfStmts
+statement' = choice
+  [ try returnStmt
+  , try ifElseStmt
+  , try ifStmt
+  , try assignmentStmt
+  , try simpleExpr
+  , try loopStmt
+  , try funcStmt
+  , try blockOfStmts
+  ]
 
 blockOfStmts :: ParsecT String () Identity StmtT
 blockOfStmts = braces statements
+
+nullStmt :: Parser StmtT
+nullStmt = Null <$ semi
 
 ifElseStmt :: Parser StmtT
 ifElseStmt = do
@@ -53,15 +60,16 @@ ifStmt = do
 returnStmt :: Parser StmtT
 returnStmt = do
   reserved "return"
-  expr <- simpleExpr <|> (Null <$ semi)
+  expr <- simpleExpr <|> nullStmt
   return $ Return expr
 
 assignmentStmt :: Parser StmtT
-assignmentStmt =
-  try assignStmt <|>
-  try emptyAssignStmt <|>
-  try assignValueStmt <|>
-  try opAssignStmt <?> "Assingment"
+assignmentStmt = choice
+  [ try assignStmt
+  , try opAssignStmt
+  , try assignValueStmt
+  , try emptyAssignStmt
+  ] <?> "Assingment"
 
 assignStmt :: Parser StmtT
 assignStmt = do
@@ -93,29 +101,32 @@ opAssignStmt = do
   return $ Assignment $ OpAssign op varName expr
 
 typeOfAssignOp :: Parser BinOp
-typeOfAssignOp =
-  (reservedOp "%=" >> return Mod) <|>
-  (reservedOp "+=" >> return Add) <|>
-  (reservedOp "-=" >> return Subtract) <|>
-  (reservedOp "*=" >> return Multiply) <|>
-  (reservedOp "/=" >> return Divide) <?> "Assign operator"
+typeOfAssignOp = choice
+  [ reservedOp "%=" >> return Mod
+  , reservedOp "+=" >> return Add
+  , reservedOp "-=" >> return Subtract
+  , reservedOp "*=" >> return Multiply
+  , reservedOp "/=" >> return Divide
+  ] <?> "Assign operator"
 
 typeOfExpr :: Parser Type
-typeOfExpr =
-  (reserved "int" >> return INT_T) <|>
-  (reserved "char" >> return CHAR_T) <|>
-  (reserved "bool" >> return BOOL_T) <?> "bad type"
+typeOfExpr = choice
+  [ reserved "int" >> return INT_T
+  , reserved "char" >> return CHAR_T
+  , reserved "bool" >> return BOOL_T
+  ] <?> "Bad type"
 
-funcParam :: Parser FParamsT
+funcParam :: Parser FParamT
 funcParam = do
   typeOfP <- typeOfExpr
   name <- identifier
-  return $ Param typeOfP name
+  return $ FParam typeOfP name
 
 funcStmt :: Parser StmtT
-funcStmt =
-  try declareFuncStmt <|>
-  try defineFuncStmt <?> "Function declaration | definition"
+funcStmt = choice
+  [ try declareFuncStmt
+  , try defineFuncStmt
+  ] <?> "Function declaration | definition"
 
 declareFuncStmt :: Parser StmtT
 declareFuncStmt = do
@@ -132,3 +143,39 @@ defineFuncStmt = do
   params <- parens $ commaSep funcParam
   body <- blockOfStmts
   return $ Func $ DefineFunc typeOfFunc name params body
+
+loopStmt :: Parser StmtT
+loopStmt = whileLoop <|>
+           forLoop <?> "For | while loop"
+
+whileLoop :: Parser StmtT
+whileLoop = do
+  reserved "while"
+  cond <- parens expression
+  body <- blockOfStmts
+  return $ Loop $ While cond body
+
+forLoop :: Parser StmtT
+forLoop = do
+  reserved "for"
+  header <- parens forLoopHeader
+  body <- blockOfStmts
+  return $ Loop $ For header body
+
+forLoopHeader :: Parser ForHeaderT
+forLoopHeader = do
+  initClause <- try assignmentStmt <|> nullStmt
+  condClause <- try simpleExpr <|> nullStmt
+  postClause <- try assignmentWithoutSemicolonOrNull <|> return Null
+  return $ ForHeader initClause condClause postClause
+
+assignmentWithoutSemicolonOrNull :: Parser StmtT
+assignmentWithoutSemicolonOrNull = do
+  input <- getInput
+  let parensEndIdx = fromJust $ elemIndex ')' input
+  setInput $ uncurry ((++) . (++ ";"))
+           $ splitAt parensEndIdx input
+  choice
+    [ try opAssignStmt
+    , try assignValueStmt
+    ]

@@ -19,11 +19,15 @@ type StmtT = Stmt Type
 
 type ExprT = Expr Type
 
-type FParamsT = FParams Type
+type FParamT = FParam Type
 
-type FArgsT = FArgs Type
+type FArgT = FArg Type
 
 type FuncT = Func Type
+
+type ForHeaderT = ForHeader Type
+
+type LoopT = Loop Type
 
 type AssignmentT = Assignment Type
 
@@ -45,7 +49,7 @@ type Defined = Bool
 type ScopedName = (Scope, Name)
 
 -- | Value to EnvMap
-type Env = (EbpOffset, Defined, [FParamsT])
+type Env = (EbpOffset, Defined, [FParamT])
 
 -- | Global map for extra info
 type EnvMap = Map ScopedName Env

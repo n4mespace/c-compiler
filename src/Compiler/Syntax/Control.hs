@@ -9,6 +9,7 @@ data Stmt a
   | Assignment (Assignment a)
   | If (Stmt a) (Stmt a)
   | IfElse (Stmt a) (Stmt a) (Stmt a)
+  | Loop (Loop a)
   | Func (Func a)
   | Expr (Expr a)
   | Return (Stmt a)
@@ -16,12 +17,12 @@ data Stmt a
   deriving (Show)
 
 data Func a
-  = DeclareFunc a Name [FParams a]
-  | DefineFunc a Name [FParams a] (Stmt a)
+  = DeclareFunc a Name [FParam a]
+  | DefineFunc a Name [FParam a] (Stmt a)
   deriving (Show)
 
-data FParams a =
-  Param a Name
+data FParam a =
+  FParam a Name
   deriving (Show)
 
 data Assignment a
@@ -31,6 +32,14 @@ data Assignment a
   | OpAssign BinOp Name (Stmt a)
   deriving (Show)
 
-instance Eq a => Eq (FParams a) where
-  Param t _ == Param t' _ = t == t'
+data Loop a
+  = While (Expr a) (Stmt a)
+  | For (ForHeader a) (Stmt a)
+  deriving (Show)
 
+data ForHeader a =
+  ForHeader (Stmt a) (Stmt a) (Stmt a)
+  deriving (Show)
+
+instance Eq a => Eq (FParam a) where
+  FParam t _ == FParam t' _ = t == t'

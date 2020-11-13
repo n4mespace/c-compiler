@@ -42,8 +42,8 @@ instance Emittable StmtT where
   emit (Block stmts) = emit stmts
   emit (Func func) = emit func
   emit (Assignment assign) = emit assign
-  emit (Return Null) = Right ""
-  emit (Return (Expr expr)) = emit expr
+  emit (Return Null) = ret
+  emit (Return (Expr expr)) = emit expr <$*> ret
   emit (If (Expr cond) stmt) =
     emitBlock
       [ nLine
@@ -94,8 +94,7 @@ instance Emittable FuncT where
       , nLine
       , emit fBody
       , nLine
-      , emitNLn "leave"
-      , emitNLn "ret"
+      , ret
       ]
   emit _ = Right ""
 
@@ -151,8 +150,8 @@ instance Emittable ExprT where
 instance Emittable a => Emittable [a] where
   emit = emitBlock . (emit <$>)
 
-instance Emittable FArgsT where
-  emit (Arg expr) = emit expr <$*> pushEax
+instance Emittable FArgT where
+  emit (FArg expr) = emit expr <$*> pushEax
 
 instance Emittable C where
   emit (INT i) = Right $ show i

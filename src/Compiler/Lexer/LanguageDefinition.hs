@@ -34,6 +34,8 @@ reservedCNames =
   , "bool"
   , "while"
   , "for"
+  , "break"
+  , "continue"
   , "return"
   , "if"
   , "else"
@@ -137,16 +139,15 @@ booleanFalse = do
 
 -- | Boolean false or true
 constBool :: ParsecT String () Identity ExprT
-constBool =
-  try booleanTrue <|>
-  try booleanFalse
-
+constBool = booleanTrue <|> booleanFalse
+ 
 -- | Bin and dec int values (also char converted to ascii)
 constInt :: ParsecT String () Identity ExprT
-constInt =
-  try (Const . INT <$> binaryInteger) <|>
-  try (Const . INT <$> integer) <|>
-  try (Const . INT . fromIntegral . fromEnum <$> singleChar)
+constInt = choice 
+  [ try (Const . INT <$> binaryInteger)
+  , try (Const . INT <$> integer)
+  , try (Const . INT . fromIntegral . fromEnum <$> singleChar)
+  ] <?> "Constant int (dec or bin) | char"
 
 -- | Identifier name
 var :: ParsecT String () Identity ExprT
@@ -159,13 +160,17 @@ callFunc = do
   args <- parens $ commaSep funcArg
   return $ CallFunc name args
 
+-- | Lift expression to stmt
+exprStmt :: Parser StmtT
+exprStmt = Expr <$> expression 
+
 -- | Expression with ; at the end
 simpleExpr :: Parser StmtT
-simpleExpr = (Expr <$> expression) <* semi
+simpleExpr = exprStmt <* semi
 
 -- | Function arguments
-funcArg :: Parser FArgsT
-funcArg = Arg <$> expression
+funcArg :: Parser FArgT
+funcArg = FArg <$> expression
 
 -- | Operator table
 operators :: [[Operator Char () ExprT]]
@@ -190,12 +195,13 @@ operators =
 
 -- | Terms parser
 terms :: ParsecT String () Identity ExprT
-terms =
-  parens expression <|>
-  try callFunc <|>
-  try var <|>
-  try constInt <|>
-  try constBool <?> "constant arythmetic term"
+terms = choice
+  [ parens expression
+  , try callFunc
+  , try var
+  , try constInt
+  , try constBool 
+  ] <?> "Constant arythmetic term"
 
 -- | Match operators and terms into expression
 expression :: Parser ExprT

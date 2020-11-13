@@ -226,18 +226,18 @@ test6' = [str|
 
 test7' :: String
 test7' = [str|
-            |int addTwoIfFlag(int value, bool flag);
-            |int addOne(int value);
-            |
-            |int addOne(int v) {
-            |    return v + 1;
-            |}
-            |
-            |int addTwoIfFlag(int v, bool f) {
-            |    if (f) {
-            |        return v;
-            |    } else {
-            |        return v + 2;
-            |    }
-            |}
-            |]
+             |int addTwoIfFlag(int value, bool flag);
+             |int addOne(int value);
+             |
+             |int addOne(int v) {
+             |    return v + 1;
+             |}
+             |
+             |int addTwoIfFlag(int v, bool f) {
+             |    if (f) {
+             |        return v;
+             |    } else {
+             |        return v + 2;
+             |    }
+             |}
+             |]

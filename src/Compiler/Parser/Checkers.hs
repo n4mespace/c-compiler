@@ -203,20 +203,20 @@ checkerFunc g@(currScope, _) func =
           lift $ Left $ BadExpression
                       $ "Already declared function: " <> fName
 
-checkerArgs :: GlobalEnv -> [FArgsT] -> Either ErrT [FArgsT]
+checkerArgs :: GlobalEnv -> [FArgT] -> Either ErrT [FArgT]
 checkerArgs _ [] = Right []
-checkerArgs g ((Arg arg):args) =
-  (:) . Arg <$> checkerExpr g arg <*> checkerArgs g args
+checkerArgs g ((FArg arg):args) =
+  (:) . FArg <$> checkerExpr g arg <*> checkerArgs g args
 
 checkerParams :: GlobalEnv
-              -> [FParamsT]
-              -> StateT GlobalEnv (Either ErrT) [FParamsT]
+              -> [FParamT]
+              -> StateT GlobalEnv (Either ErrT) [FParamT]
 checkerParams _ [] = return []
-checkerParams g@(currScope, _) ((Param t pName):params) = do
+checkerParams g@(currScope, _) ((FParam t pName):params) = do
   modify $ addIdToEnv
            (currScope, pName)
            (ebpOffset, True, [])
-  (Param t (constructAddress ebpOffset) :) <$> checkerParams g params
+  (FParam t (constructAddress ebpOffset) :) <$> checkerParams g params
   where
     ebpOffset :: EbpOffset
     ebpOffset = (length params + 2) * (-4)

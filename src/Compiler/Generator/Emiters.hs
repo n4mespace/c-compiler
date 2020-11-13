@@ -118,6 +118,9 @@ goToIf lbl =
 goTo :: String -> Either ErrT String
 goTo = emitNLn . ("jmp " <>)
 
+ret :: Either ErrT String
+ret = emitNLn "leave" <$*> emitNLn "ret"
+
 getRandomLbl :: IO StdGen -> String
 getRandomLbl gen =
   "__" <> take 6 (randomRs ('a','z') $ unsafePerformIO gen)
