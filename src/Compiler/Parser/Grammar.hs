@@ -45,18 +45,18 @@ runChecker :: StmtT -> GlobalEnv -> Either ErrT StmtT
 runChecker ast initialEnv = do
   (checkedAst, (_, envMap)) <- runStateT (check ast) initialEnv
   let
-    undefinedFunc :: EnvMap
-    undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
+    undefObjects :: EnvMap
+    undefObjects = M.filter (\(_, defined, _) -> not defined) envMap
 
   case envMap M.!? (0, "main") of
     Nothing -> Left $ BadExpression "Cannot find main function"
     Just _ ->
-      if M.size undefinedFunc == 1
+      if M.size undefObjects == 1
         then return checkedAst
         else Left $ BadExpression
                   $ "Found undefined objects:" <>
                     concatMap (\(_, name) -> name <> " ")
-                              (M.keys undefinedFunc)
+                              (M.keys undefObjects)
 
 
 -- | Make program capable to be checked
@@ -72,8 +72,8 @@ instance Checkable StmtT where
   check (Assignment assign) = Assignment <$> check assign
   check (Expr expr) = Expr <$> check expr
   check (Return stmt) = Return <$> check stmt
-  check (If expr stmt) = 
-    If <$> check expr <*> 
+  check (If expr stmt) =
+    If <$> check expr <*>
            check stmt
   check (IfElse expr stmt1 stmt2) =
     IfElse <$> check expr <*>
@@ -96,11 +96,8 @@ instance Checkable ExprT where
         Left $ BadExpression $ "Unknown var: " <> vName
 
       funcJust :: Env -> GlobalState ExprT
-      funcJust (offset, defined, _) =
-        if defined
-          then return $ Var $ constructAddress offset
-          else lift $
-            Left $ BadExpression $ "Uninitialized var: " <> vName
+      funcJust (offset, _, _) = 
+        return $ Var $ constructAddress offset
 
   check (CallFunc fName fArgs) = do
     envIdLookup fName funcNothing funcJust
@@ -248,8 +245,8 @@ instance Checkable FuncT where
 
 
 instance Checkable LoopT where
-  check (While cond body) = 
-    While <$> check cond <*> withoutScope (check body)
+  check (While cond body) =
+    While <$> check cond <*> check body
   check (For forHeader body) = undefined
 
 instance Checkable ForHeaderT where

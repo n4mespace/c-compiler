@@ -46,8 +46,13 @@ instance Emittable StmtT where
   emit (Func func) = emit func
   emit (Assignment assign) = emit assign
   emit (Loop loop) = emit loop
-  emit (Return Null) = ret
-  emit (Return (Expr expr)) = emit expr <$*> ret
+  emit (Return Null) = nLine <$*> ret
+  emit (Return (Expr expr)) = 
+    emitBlock
+      [ emit expr
+      , nLine
+      , ret
+      ]
   emit (If cond stmt) =
     emitBlock
       [ nLine
@@ -99,8 +104,9 @@ instance Emittable FuncT where
       , emitNLn $ "enter " <> show (length stmts * 4) <> ", 0"
       , nLine
       , emit fBody
-      , nLine
-      , ret
+      , case last stmts of
+          Return _ -> emitLn ""
+          _        -> ret
       ]
   emit _ = Right ""
 

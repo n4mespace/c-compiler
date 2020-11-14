@@ -21,6 +21,7 @@ main = hspec $ do
     it "test7: big scoped expr" $ mustCompile test7
     it "test8: assign with operator" $ mustCompile test8
     it "test9: function calls with different params" $ mustCompile test9
+    it "test10: fibonachi with while loop" $ mustCompile test10
   -- Failure cases
   describe "Test.Compiler.FailureCases" $ do
     it "test1: uninitialized var" $ mustNotCompile test1'
@@ -30,6 +31,7 @@ main = hspec $ do
     it "test5: using var from if stmt scope" $ mustNotCompile test5'
     it "test6: using assing operator without var declaration" $ mustNotCompile test6'
     it "test7: function main is missing" $ mustNotCompile test7'
+    it "test8: var from while loop" $ mustNotCompile test8'
 
   where
     mustCompile :: String -> Expectation
@@ -167,6 +169,33 @@ test9 = [str|
             |}
             |]
 
+test10 :: String
+test10 = [str|
+             |int fib(int n);
+             |
+             |int main() {
+             |    int f = fib(10);
+             |    return f;
+             |}
+             |
+             |int fib(int n) {
+             |    int i = 0;
+             |    int j = 1;
+             |    int count = 0;
+             |    int d = 0;
+             |    int c = i + j;
+             |
+             |    while(count < n - 2) {
+             |        d = j + c;
+             |        j = c;
+             |        c = d;
+             |        count += 1;
+             |    }
+             |    return d;
+             |}
+             |]
+
+
 test1' :: String
 test1' = [str|
             |int main() {
@@ -239,5 +268,22 @@ test7' = [str|
              |    } else {
              |        return v + 2;
              |    }
+             |}
+             |]
+
+test8' :: String
+test8' = [str|
+             |int loop(int n);
+             |int main() {
+             |    int f = loop(10);
+             |    return f;
+             |}
+             |int loop(int n) {
+             |    int i = 0;
+             |    while(i < n - 2) {
+             |        i += 1;
+             |        int k = 4;
+             |    }
+             |    return i + k;
              |}
              |]

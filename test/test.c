@@ -8,11 +8,9 @@ int main() {
 int fib(int n) {
     int i = 0;
     int j = 1;
+    int d = 0;
     int count = 0;
-    int c;
-    int d;
-
-    c = i + j;
+    int c = i + j;
 
     while(count < n - 2) {
         d = j + c;
@@ -20,6 +18,5 @@ int fib(int n) {
         c = d;
         count += 1;
     }
-
     return d;
 }
