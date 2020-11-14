@@ -112,8 +112,17 @@ goToIfElse lbl lbl' =
 
 goToIf :: String -> Either ErrT String
 goToIf lbl =
-  emitNLn "cmp eax, 0" <$*>
-  emitNLn ("je " <> lbl)
+  emitBlock
+    [ emitNLn "cmp eax, 0"
+    , emitNLn $ "je " <> lbl
+    ]
+
+goToIfNot :: String -> Either ErrT String
+goToIfNot lbl =
+  emitBlock
+    [ emitNLn "cmp eax, 1"
+    , emitNLn $ "je " <> lbl
+    ]
 
 goTo :: String -> Either ErrT String
 goTo = emitNLn . ("jmp " <>)

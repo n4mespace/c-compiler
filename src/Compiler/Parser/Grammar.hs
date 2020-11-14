@@ -54,7 +54,7 @@ runChecker ast initialEnv = do
       if M.size undefinedFunc == 1
         then return checkedAst
         else Left $ BadExpression
-                  $ "Found undefined functions:" <>
+                  $ "Found undefined objects:" <>
                     concatMap (\(_, name) -> name <> " ")
                               (M.keys undefinedFunc)
 
@@ -66,12 +66,15 @@ class Checkable p where
 
 
 instance Checkable StmtT where
+  check Null = return Null
   check (Func func) = Func <$> check func
   check (Loop loop) = Loop <$> check loop
   check (Assignment assign) = Assignment <$> check assign
   check (Expr expr) = Expr <$> check expr
   check (Return stmt) = Return <$> check stmt
-  check (If expr stmt) = If <$> check expr <*> check stmt
+  check (If expr stmt) = 
+    If <$> check expr <*> 
+           check stmt
   check (IfElse expr stmt1 stmt2) =
     IfElse <$> check expr <*>
                check stmt1 <*>
@@ -82,7 +85,6 @@ instance Checkable StmtT where
         []  -> lift $ Left EmptyBlock
         [s] -> Block . (: []) <$> check s
         ss  -> Block <$> traverse check ss
-  check Null = return Null
 
 
 instance Checkable ExprT where
@@ -171,9 +173,9 @@ instance Checkable AssignmentT where
 
       funcJust :: Env -> GlobalState AssignmentT
       funcJust (_, False, _) = do
-          checkedExpr <- check expr
-          modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
-          return $ ValueAssign (constructAddress ebpOffset) checkedExpr
+        checkedExpr <- check expr
+        modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
+        return $ ValueAssign (constructAddress ebpOffset) checkedExpr
       funcJust (offset, _, _) =
         ValueAssign (constructAddress offset) <$> check expr
 
@@ -191,9 +193,9 @@ instance Checkable AssignmentT where
 
       funcJust :: Env -> GlobalState AssignmentT
       funcJust (_, False, _) = do
-          checkedExpr <- check expr
-          modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
-          return $ OpAssign op (constructAddress ebpOffset) checkedExpr
+        checkedExpr <- check expr
+        modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
+        return $ OpAssign op (constructAddress ebpOffset) checkedExpr
       funcJust (offset, _, _) =
         OpAssign op (constructAddress offset) <$> check expr
 
@@ -246,8 +248,8 @@ instance Checkable FuncT where
 
 
 instance Checkable LoopT where
-  check (While wExpr wBody) = 
-    While <$> check wExpr <*> check wBody
+  check (While cond body) = 
+    While <$> check cond <*> withoutScope (check body)
   check (For forHeader body) = undefined
 
 instance Checkable ForHeaderT where
