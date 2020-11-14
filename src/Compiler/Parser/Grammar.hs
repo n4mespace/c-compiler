@@ -134,12 +134,9 @@ instance Checkable AssignmentT where
         return $ Assign aType (constructAddress ebpOffset) checkedExpr
 
       funcJust :: Env -> GlobalState AssignmentT
-      funcJust _ = do
-        (updatedScope, _) <- get
-        if updatedScope < currScope
-          then funcNothing
-          else lift $ Left $ BadExpression
-                    $ "Already declared var: " <> aName
+      funcJust _ = lift $
+        Left $ BadExpression
+             $ "Already declared var: " <> aName
 
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
@@ -155,12 +152,9 @@ instance Checkable AssignmentT where
         return $ EmptyAssign aType (constructAddress offset)
 
       funcJust :: Env -> GlobalState AssignmentT
-      funcJust _ = do
-        (updatedScope, _) <- get
-        if updatedScope <= currScope
-          then funcNothing ebpOffset
-          else lift $ Left $ BadExpression
-                    $ "Already declared var: " <> aName
+      funcJust _ = lift $
+        Left $ BadExpression
+             $ "Already declared var: " <> aName
 
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
@@ -260,8 +254,6 @@ instance Checkable [FParamT] where
   check [] = return []
   check ((FParam t pName):params) = do
     (currScope, _) <- get
+    let ebpOffset = (length params + 2) * (-4)
     modify $ addIdToEnv (currScope, pName) (ebpOffset, True, [])
     (FParam t (constructAddress ebpOffset) :) <$> check params
-    where
-      ebpOffset :: EbpOffset
-      ebpOffset = (length params + 2) * (-4)
