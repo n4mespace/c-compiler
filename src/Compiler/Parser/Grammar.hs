@@ -67,6 +67,7 @@ class Checkable p where
 
 instance Checkable StmtT where
   check (Func func) = Func <$> check func
+  check (Loop loop) = Loop <$> check loop
   check (Assignment assign) = Assignment <$> check assign
   check (Expr expr) = Expr <$> check expr
   check (Return stmt) = Return <$> check stmt
@@ -81,7 +82,7 @@ instance Checkable StmtT where
         []  -> lift $ Left EmptyBlock
         [s] -> Block . (: []) <$> check s
         ss  -> Block <$> traverse check ss
-  check stmt = return stmt
+  check Null = return Null
 
 
 instance Checkable ExprT where
@@ -243,6 +244,14 @@ instance Checkable FuncT where
 
     envIdLookup fName funcNothing funcJust
 
+
+instance Checkable LoopT where
+  check (While wExpr wBody) = 
+    While <$> check wExpr <*> check wBody
+  check (For forHeader body) = undefined
+
+instance Checkable ForHeaderT where
+  check (ForHeader init cond post) = undefined
 
 instance Checkable [FArgT] where
   check [] = return []

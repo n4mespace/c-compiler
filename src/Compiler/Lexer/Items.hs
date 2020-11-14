@@ -48,14 +48,14 @@ ifElseStmt = do
   stmt1 <- blockOfStmts
   reserved "else"
   stmt2 <- blockOfStmts
-  return $ IfElse (Expr cond) stmt1 stmt2
+  return $ IfElse cond stmt1 stmt2
 
 ifStmt :: Parser StmtT
 ifStmt = do
   reserved "if"
   cond <- parens expression
   stmt <- blockOfStmts
-  return $ If (Expr cond) stmt
+  return $ If cond stmt
 
 returnStmt :: Parser StmtT
 returnStmt = do

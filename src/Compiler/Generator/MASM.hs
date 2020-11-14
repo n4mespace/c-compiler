@@ -44,7 +44,7 @@ instance Emittable StmtT where
   emit (Assignment assign) = emit assign
   emit (Return Null) = ret
   emit (Return (Expr expr)) = emit expr <$*> ret
-  emit (If (Expr cond) stmt) =
+  emit (If cond stmt) =
     emitBlock
       [ nLine
       , emit cond
@@ -58,7 +58,7 @@ instance Emittable StmtT where
     where
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
-  emit (IfElse (Expr cond) stmt1 stmt2) =
+  emit (IfElse cond stmt1 stmt2) =
     emitBlock
       [ nLine
       , emit cond
@@ -83,7 +83,8 @@ instance Emittable StmtT where
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
   emit (Expr expr) = emit expr
-  emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
+  emit unknown = Left $ BadExpression 
+                      $ "unknown statement: " <> show unknown
 
 instance Emittable FuncT where
   emit (DefineFunc _ fName _ fBody@(Block stmts)) =

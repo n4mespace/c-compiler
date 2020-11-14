@@ -7,8 +7,8 @@ type Name = String
 data Stmt a
   = Block [Stmt a]
   | Assignment (Assignment a)
-  | If (Stmt a) (Stmt a)
-  | IfElse (Stmt a) (Stmt a) (Stmt a)
+  | If (Expr a) (Stmt a)
+  | IfElse (Expr a) (Stmt a) (Stmt a)
   | Loop (Loop a)
   | Func (Func a)
   | Expr (Expr a)

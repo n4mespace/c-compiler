@@ -2,39 +2,22 @@
 	jmp __start_program
 	
 __func_main:
-	enter 12, 0
+	enter 8, 0
 	
-	mov eax, 0
-	mov dword ptr [ebp - 4], eax
-	mov eax, 100
-	mov dword ptr [ebp - 8], eax
 	
-	mov eax, dword ptr [ebp - 4]
+	mov eax, 1
+	
 	cmp eax, 0
-	sete al
-	cmp eax, 0
-	jne __zljxlr_if
-	je __zljxlr_else
+	je __wsqrnl_endif
 	
-__zljxlr_if:
-	mov eax, 13
-	mov dword ptr [ebp - 12], eax
-	mov eax, dword ptr [ebp - 12]
-	leave
-	ret
-	jmp __zljxlr_endif
-	
-__zljxlr_else:
-	mov eax, 4
-	push eax
-	mov eax, dword ptr [ebp - 8]
-	pop ebx
-	cdq
-	idiv ebx
+	mov eax, 3
 	leave
 	ret
 	
-__zljxlr_endif:
+__wsqrnl_endif:
+	mov eax, 1
+	leave
+	ret
 	
 	leave
 	ret

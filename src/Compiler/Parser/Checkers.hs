@@ -53,6 +53,3 @@ prevScope (currScope, envMap) = (currScope - 1, envMap)
 
 withScope :: GlobalState a -> GlobalState a
 withScope st = modify nextScope >> st <* modify prevScope
-
-withScopeBack :: GlobalState a -> GlobalState a
-withScopeBack st = modify prevScope >> st <* modify nextScope
