@@ -86,8 +86,7 @@ instance Checkable StmtT where
 
 instance Checkable ExprT where
   check (Var vName) = do
-    g <- get
-    envIdLookup g vName funcNothing funcJust
+    envIdLookup vName funcNothing funcJust
     where
       funcNothing :: GlobalState ExprT
       funcNothing = lift $
@@ -101,8 +100,7 @@ instance Checkable ExprT where
             Left $ BadExpression $ "Uninitialized var: " <> vName
 
   check (CallFunc fName fArgs) = do
-    g <- get
-    envIdLookup g fName funcNothing funcJust
+    envIdLookup fName funcNothing funcJust
     where
       funcNothing :: GlobalState ExprT
       funcNothing = lift $
@@ -146,7 +144,7 @@ instance Checkable AssignmentT where
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
 
-    envIdLookup (currScope, envMap) aName funcNothing funcJust
+    envIdLookup aName funcNothing funcJust
 
   check (EmptyAssign aType aName) = do
     (currScope, envMap) <- get
@@ -167,7 +165,7 @@ instance Checkable AssignmentT where
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
 
-    envIdLookup (currScope, envMap) aName (funcNothing 0) funcJust
+    envIdLookup aName (funcNothing 0) funcJust
 
   check (ValueAssign aName expr) = do
     (currScope, envMap) <- get
@@ -187,7 +185,7 @@ instance Checkable AssignmentT where
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
 
-    envIdLookup (currScope, envMap) aName funcNothing funcJust
+    envIdLookup aName funcNothing funcJust
 
   check (OpAssign op aName expr) = do
     (currScope, envMap) <- get
@@ -207,7 +205,7 @@ instance Checkable AssignmentT where
       ebpOffset :: EbpOffset
       ebpOffset = getMaxFromMap envMap + 4
 
-    envIdLookup (currScope, envMap) aName funcNothing funcJust
+    envIdLookup aName funcNothing funcJust
 
 
 instance Checkable FuncT where
@@ -234,7 +232,7 @@ instance Checkable FuncT where
         Left $ BadExpression
              $ "Multiple function definition: " <> fName
 
-    envIdLookup (currScope, envMap) fName funcNothing funcJust
+    envIdLookup fName funcNothing funcJust
 
   check (DeclareFunc fType fName fParams) = do
     (currScope, envMap) <- get
@@ -249,7 +247,7 @@ instance Checkable FuncT where
         Left $ BadExpression
              $ "Already declared function: " <> fName
 
-    envIdLookup (currScope, envMap) fName funcNothing funcJust
+    envIdLookup fName funcNothing funcJust
 
 
 instance Checkable [FArgT] where

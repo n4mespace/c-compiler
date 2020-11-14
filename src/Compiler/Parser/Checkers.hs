@@ -7,31 +7,21 @@ import qualified Data.Map.Strict                as M
 
 
 -- Helpers
--- envIdLookup :: String
---             -> GlobalState a
---             -> (Env -> GlobalState a)
---             -> GlobalState a
--- envIdLookup name funcNothing funcJust = do
---   (currScope, envMap) <- get
---   case M.lookup (currScope, name) envMap of
---     Nothing -> do
---       if currScope /= 0
---         then withScopeBack $
---           envIdLookup name funcNothing funcJust
---         else funcNothing
---     Just env -> funcJust env
-envIdLookup :: GlobalEnv
-            -> String
+envIdLookup :: String
             -> GlobalState a
             -> (Env -> GlobalState a)
             -> GlobalState a
-envIdLookup (currScope, envMap) aName funcNothing funcJust =
-  case M.lookup (currScope, aName) envMap of
-    Nothing -> do
-      if currScope /= 0
-        then envIdLookup (currScope - 1, envMap) aName funcNothing funcJust
-        else funcNothing
-    Just env -> funcJust env
+envIdLookup name funcNothing funcJust = do
+  (currScope, envMap) <- get
+  let
+    go scope =
+      case M.lookup (scope, name) envMap of
+        Nothing ->
+          if scope /= 0
+            then go $ scope - 1
+            else funcNothing
+        Just env -> funcJust env
+  go currScope
 
 constructAddress :: EbpOffset -> String
 constructAddress offset =
