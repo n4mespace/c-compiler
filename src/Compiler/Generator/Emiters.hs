@@ -2,6 +2,8 @@ module Compiler.Generator.Emiters where
 
 import           Compiler.Types
 
+import           Data.List        (intercalate)
+import           Data.List.Split  (splitOn)
 import           System.IO.Unsafe (unsafePerformIO)
 import           System.Random    (StdGen, randomRs)
 
@@ -145,3 +147,15 @@ addMainFuncCall emitedProgram =
     , emitNLn "mov b, eax"
     , nLine
     ]
+
+emitLoopBlock :: String -> String -> [Either ErrT String] -> Either ErrT String
+emitLoopBlock loopStart loopEnd =
+  foldr1 (\acc x -> acc <$*>
+    case x of
+      Right r -> Right $
+          replace "__continue" ("jmp " <> loopStart) .
+          replace "__break" ("jmp " <> loopEnd) $ r
+      err -> err)
+  where
+    replace :: String -> String -> String -> String
+    replace old new = intercalate new . splitOn old

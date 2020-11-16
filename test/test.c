@@ -11,11 +11,16 @@ int fib(int n) {
     int d = 0;
     int c = i + j;
 
-    for (; i < n - 2; i += 1) {
-        d = j + c;
-        j = c;
-        c = d;
-        continue;
+    for (;; i += 1) {
+        if (i < n - 2) {
+            d = j + c;
+            j = c;
+            c = d;
+            continue;
+            c += 2;
+        } else {
+            break;
+        }
     }
 
     return d;

@@ -46,27 +46,13 @@ stmtsInBody = choice
   , try assignmentStmt
   , try simpleExpr
   , try loopStmt
+  , try continueStmt
+  , try breakStmt
   , try bodyStmts
   ]
 
 bodyStmts :: ParsecT String () Identity StmtT
 bodyStmts = braces $ statements stmtsInBody
-
-stmtsInLoop :: Parser StmtT
-stmtsInLoop = choice
-  [ try returnStmt
-  , try ifElseStmt
-  , try ifStmt
-  , try assignmentStmt
-  , try simpleExpr
-  , try loopStmt
-  , try breakStmt
-  , try continueStmt
-  , try loopStmts
-  ]
-
-loopStmts :: ParsecT String () Identity StmtT
-loopStmts = braces $ statements stmtsInLoop
 
 nullStmt :: Parser StmtT
 nullStmt = Null <$ semi
@@ -195,14 +181,14 @@ whileLoop :: Parser StmtT
 whileLoop = do
   reserved "while"
   cond <- parens expression
-  body <- loopStmts
+  body <- bodyStmts
   return $ Loop $ While cond body
 
 forLoop :: Parser StmtT
 forLoop = do
   reserved "for"
   header <- parens forLoopHeader
-  body <- loopStmts
+  body <- bodyStmts
   return $ Loop $ For header body
 
 forLoopHeader :: Parser ForHeaderT
