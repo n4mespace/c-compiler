@@ -42,6 +42,12 @@ type Scope = Int
 -- | Counter for scope depth
 type CurrScope = Int
 
+-- | Name of function scope
+type FuncName = String
+
+-- | Name of current function scope
+type CurrFuncName = String
+
 -- | Whether expr is defined
 type Defined = Bool
 
@@ -49,13 +55,13 @@ type Defined = Bool
 type ScopedName = (Scope, Name)
 
 -- | Value to EnvMap
-type Env = (EbpOffset, Defined, [FParamT])
+type Env = (EbpOffset, Defined, FuncName, [FParamT])
 
 -- | Global map for extra info
 type EnvMap = Map ScopedName Env
 
 -- | Global state map
-type GlobalEnv = (CurrScope, EnvMap)
+type GlobalEnv = (CurrScope, CurrFuncName, EnvMap)
 
 -- | Global state for grammar check
 type GlobalState a = StateT GlobalEnv (Either ErrT) a

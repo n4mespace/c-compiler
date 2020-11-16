@@ -185,7 +185,7 @@ test10 = [str|
              |    int d = 0;
              |    int c = i + j;
              |
-             |    while(count < n - 2) {
+             |    while (count < n - 2) {
              |        d = j + c;
              |        j = c;
              |        c = d;

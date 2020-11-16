@@ -29,7 +29,7 @@ checkGrammar ast =
       return checkedAst
   where
     initialEnv :: GlobalEnv
-    initialEnv = (-1, M.singleton (-1, "") (0, False, []))
+    initialEnv = (-1, "", M.singleton (-1, "") (0, False, "", []))
 
     opts :: OutputOptions
     opts = defaultOutputOptionsDarkBg
@@ -43,20 +43,21 @@ checkGrammar ast =
 
 runChecker :: StmtT -> GlobalEnv -> Either ErrT StmtT
 runChecker ast initialEnv = do
-  (checkedAst, (_, envMap)) <- runStateT (check ast) initialEnv
+  (checkedAst, (_, _, envMap)) <- runStateT (check ast) initialEnv
   let
     undefObjects :: EnvMap
-    undefObjects = M.filter (\(_, defined, _) -> not defined) envMap
+    undefObjects = M.filter (\(_, defined, _, _) -> not defined) envMap
 
   case envMap M.!? (0, "main") of
     Nothing -> Left $ BadExpression "Cannot find main function"
     Just _ ->
       if M.size undefObjects == 1
         then return checkedAst
-        else Left $ BadExpression
-                  $ "Found undefined objects:" <>
-                    concatMap (\(_, name) -> name <> " ")
-                              (M.keys undefObjects)
+        else Left $
+          BadExpression $
+            "Found objects without being defined (initialized):" <>
+            concatMap (\(_, name) -> name <> " ")
+                      (M.keys undefObjects)
 
 
 -- | Make program capable to be checked
@@ -72,48 +73,47 @@ instance Checkable StmtT where
   check (Assignment assign) = Assignment <$> check assign
   check (Expr expr) = Expr <$> check expr
   check (Return stmt) = Return <$> check stmt
-  check (If expr stmt) =
-    If <$> check expr <*>
-           check stmt
+  check (Block []) = lift $ Left EmptyBlock
+  check (Block block) = withScope $ Block <$> mapM check block
+  check (If expr stmt) = If <$> check expr <*> check stmt
   check (IfElse expr stmt1 stmt2) =
-    IfElse <$> check expr <*>
-               check stmt1 <*>
-               check stmt2
-  check (Block block) =
-    withScope $
-      case block of
-        []  -> lift $ Left EmptyBlock
-        [s] -> Block . (: []) <$> check s
-        ss  -> Block <$> traverse check ss
+    IfElse <$> check expr <*> check stmt1 <*>
+                              check stmt2
 
 
 instance Checkable ExprT where
   check (Var vName) = do
-    envIdLookup vName funcNothing funcJust
-    where
+    let
       funcNothing :: GlobalState ExprT
       funcNothing = lift $
         Left $ BadExpression $ "Unknown var: " <> vName
 
-      funcJust :: Env -> GlobalState ExprT
-      funcJust (offset, _, _) = 
-        return $ Var $ constructAddress offset
+      funcJust :: Env -> CurrScope -> GlobalState ExprT
+      funcJust (offset, defined, _, _) _ =
+        if defined
+          then return $ Var $ constructAddress offset
+          else lift $
+            Left $ BadExpression $ "Uninitialized var: " <> vName
+
+    envIdLookup vName funcNothing funcJust
 
   check (CallFunc fName fArgs) = do
-    envIdLookup fName funcNothing funcJust
-    where
+    let
       funcNothing :: GlobalState ExprT
       funcNothing = lift $
         Left $ BadExpression $ "Unknown function: " <> fName
 
-      funcJust :: Env -> GlobalState ExprT
-      funcJust (_, _, fParams) =
+      funcJust :: Env -> CurrScope -> GlobalState ExprT
+      funcJust (_, _, _, fParams) _ =
         if length fParams == length fArgs
           then CallFunc fName <$> check fArgs
           else lift $
             Left $ BadExpression
-                 $ "Wrong number of arguments in function: " <> fName <>
-                   ". Must be: " <> show (length fParams) <> " args"
+                 $ "Wrong number of arguments in function: " <>
+                   fName <> ". Must be: " <>
+                   show (length fParams) <> " args"
+
+    envIdLookup fName funcNothing funcJust
 
   check (Binary op expr1 expr2) =
     Binary op <$> check expr1 <*> check expr2
@@ -125,96 +125,105 @@ instance Checkable ExprT where
 
 instance Checkable AssignmentT where
   check (Assign aType aName expr) = do
-    (currScope, envMap) <- get
+    (currScope, currFunc, envMap) <- get
     let
       funcNothing :: GlobalState AssignmentT
       funcNothing = do
-        checkedExpr <- check expr
-        modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
-        return $ Assign aType (constructAddress ebpOffset) checkedExpr
+        expr' <- check expr
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
+        return $ Assign aType (constructAddress ebpOffset) expr'
 
-      funcJust :: Env -> GlobalState AssignmentT
-      funcJust _ = lift $
-        Left $ BadExpression
-             $ "Already declared var: " <> aName
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust _ updatedScope =
+        if updatedScope < currScope
+          then funcNothing
+          else lift $ Left $ BadExpression
+                    $ "Already declared var: " <> aName
 
       ebpOffset :: EbpOffset
-      ebpOffset = getMaxFromMap envMap + 4
+      ebpOffset = getNextMax envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
   check (EmptyAssign aType aName) = do
-    (currScope, envMap) <- get
+    (currScope, currFunc, envMap) <- get
     let
       funcNothing :: EbpOffset -> GlobalState AssignmentT
       funcNothing offset = do
-        modify $ addIdToEnv (currScope, aName) (offset, False, [])
+        modify $ addIdToEnv (currScope, aName)
+                            (offset, False, currFunc, [])
         return $ EmptyAssign aType (constructAddress offset)
 
-      funcJust :: Env -> GlobalState AssignmentT
-      funcJust _ = lift $
-        Left $ BadExpression
-             $ "Already declared var: " <> aName
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust _ updatedScope =
+        if updatedScope < currScope
+          then funcNothing ebpOffset
+          else lift $ Left $ BadExpression
+                    $ "Already declared var: " <> aName
 
       ebpOffset :: EbpOffset
-      ebpOffset = getMaxFromMap envMap + 4
+      ebpOffset = getNextMax envMap currFunc
 
     envIdLookup aName (funcNothing 0) funcJust
 
   check (ValueAssign aName expr) = do
-    (currScope, envMap) <- get
+    (currScope, currFunc, envMap) <- get
     let
       funcNothing :: GlobalState AssignmentT
       funcNothing = lift $
         Left $ BadExpression $ "Unknown var: " <> aName
 
-      funcJust :: Env -> GlobalState AssignmentT
-      funcJust (_, False, _) = do
-        checkedExpr <- check expr
-        modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
-        return $ ValueAssign (constructAddress ebpOffset) checkedExpr
-      funcJust (offset, _, _) =
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust (_, False, _, _) _ = do
+        expr' <- check expr
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
+        return $ ValueAssign (constructAddress ebpOffset) expr'
+      funcJust (offset, _, _, _) _ =
         ValueAssign (constructAddress offset) <$> check expr
 
       ebpOffset :: EbpOffset
-      ebpOffset = getMaxFromMap envMap + 4
+      ebpOffset = getNextMax envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
   check (OpAssign op aName expr) = do
-    (currScope, envMap) <- get
+    (currScope, currFunc, envMap) <- get
     let
       funcNothing :: GlobalState AssignmentT
       funcNothing = lift $
         Left $ BadExpression $ "Unknown var: " <> aName
 
-      funcJust :: Env -> GlobalState AssignmentT
-      funcJust (_, False, _) = do
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust (_, False, _, _) _ = do
         checkedExpr <- check expr
-        modify $ addIdToEnv (currScope, aName) (ebpOffset, True, [])
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
         return $ OpAssign op (constructAddress ebpOffset) checkedExpr
-      funcJust (offset, _, _) =
+      funcJust (offset, _, _, _) _ =
         OpAssign op (constructAddress offset) <$> check expr
 
       ebpOffset :: EbpOffset
-      ebpOffset = getMaxFromMap envMap + 4
+      ebpOffset = getNextMax envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
 
 instance Checkable FuncT where
   check (DefineFunc fType fName fParams fBody) = do
-    (currScope, envMap) <- get
+    (currScope, _, envMap) <- get
     let
       funcNothing :: GlobalState FuncT
       funcNothing = do
-        modify $ addIdToEnv (currScope, fName) (0, True, fParams)
+        modify $ addIdToEnv (currScope, fName)
+                            (0, True, fName, fParams)
         DefineFunc fType fName <$>
                    check fParams <*>
                    check fBody
 
-      funcJust :: Env -> GlobalState FuncT
-      funcJust (_, False, fParams') =
+      funcJust :: Env -> CurrScope -> GlobalState FuncT
+      funcJust (_, False, _, fParams') _ =
         if fParams == fParams'
           then funcNothing
           else lift $
@@ -222,22 +231,24 @@ instance Checkable FuncT where
                  $ "Different parameters in declaration " <>
                    "and definition " <>
                    "in function: " <> fName
-      funcJust _ = lift $
+      funcJust _ _ = lift $
         Left $ BadExpression
              $ "Multiple function definition: " <> fName
 
+    modify $ setFuncScope fName
     envIdLookup fName funcNothing funcJust
 
   check (DeclareFunc fType fName fParams) = do
-    (currScope, envMap) <- get
+    (currScope, currFunc, envMap) <- get
     let
       funcNothing :: GlobalState FuncT
       funcNothing = do
-        modify $ addIdToEnv (currScope, fName) (0, False, fParams)
+        modify $ addIdToEnv (currScope, fName)
+                            (0, False, currFunc, fParams)
         return $ DeclareFunc fType fName fParams
 
-      funcJust :: Env -> GlobalState FuncT
-      funcJust _ = lift $
+      funcJust :: Env -> CurrScope -> GlobalState FuncT
+      funcJust _ _ = lift $
         Left $ BadExpression
              $ "Already declared function: " <> fName
 
@@ -247,10 +258,39 @@ instance Checkable FuncT where
 instance Checkable LoopT where
   check (While cond body) =
     While <$> check cond <*> check body
-  check (For forHeader body) = undefined
+
+  check (For forHeader body) =
+    For <$> check forHeader <*> check body
+
 
 instance Checkable ForHeaderT where
-  check (ForHeader init cond post) = undefined
+  check (ForHeader init cond post) = do
+    let
+      init' :: GlobalState StmtT
+      init' = case init of
+        Null -> return Null
+        assign@(Assignment _) -> check assign
+        _ -> lift $ Left
+                  $ BadExpression "Invalid init clause"
+
+      cond' :: GlobalState StmtT
+      cond' = case cond of
+        Null -> return Null
+        expr@(Expr _) -> check expr
+        _ -> lift $ Left
+                  $ BadExpression "Invalid condition clause"
+
+      post' :: GlobalState StmtT
+      post' = case post of
+        Null -> return Null
+        assign@(Assignment ValueAssign{}) -> check assign
+        assign@(Assignment OpAssign{}) -> check assign
+        _ -> lift $ Left
+                  $ BadExpression "Invalid post clause"
+
+    withScope $
+      ForHeader <$> init' <*> cond' <*> post'
+
 
 instance Checkable [FArgT] where
   check [] = return []
@@ -261,7 +301,12 @@ instance Checkable [FArgT] where
 instance Checkable [FParamT] where
   check [] = return []
   check ((FParam t pName):params) = do
-    (currScope, _) <- get
-    let ebpOffset = (length params + 2) * (-4)
-    modify $ addIdToEnv (currScope, pName) (ebpOffset, True, [])
+    (currScope, currFunc, _) <- get
+    let
+      ebpOffset :: EbpOffset
+      ebpOffset = (length params + 2) * (-4)
+
+    modify $ addIdToEnv (currScope, pName)
+                        (ebpOffset, True, currFunc, [])
+
     (FParam t (constructAddress ebpOffset) :) <$> check params

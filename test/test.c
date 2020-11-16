@@ -9,14 +9,28 @@ int fib(int n) {
     int i = 0;
     int j = 1;
     int d = 0;
-    int count = 0;
-    int c = i + j;
+    int c = n;
 
-    while(count < n - 2) {
+    for (int i = 0; i < n - 2; i += 1) {
         d = j + c;
         j = c;
         c = d;
-        count += 1;
     }
+ 
     return d;
+}
+
+int main1() {
+    int l = 2;
+    int a = l;
+    if (false) {
+        int b = 13;
+        {
+            int l = 3;
+            int c = 2 * b;
+        }
+        return b;
+    } else {
+        return 4;
+    }
 }

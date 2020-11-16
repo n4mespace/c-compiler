@@ -28,10 +28,10 @@ data FParam a =
   deriving (Show)
 
 data Assignment a
-  = Assign a Name (Stmt a)
+  = Assign a Name (Expr a)
   | EmptyAssign a Name
-  | ValueAssign Name (Stmt a)
-  | OpAssign BinOp Name (Stmt a)
+  | ValueAssign Name (Expr a)
+  | OpAssign BinOp Name (Expr a)
   deriving (Show)
 
 data Loop a

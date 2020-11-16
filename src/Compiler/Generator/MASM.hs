@@ -47,7 +47,7 @@ instance Emittable StmtT where
   emit (Assignment assign) = emit assign
   emit (Loop loop) = emit loop
   emit (Return Null) = nLine <$*> ret
-  emit (Return (Expr expr)) = 
+  emit (Return (Expr expr)) =
     emitBlock
       [ emit expr
       , nLine
@@ -112,13 +112,12 @@ instance Emittable FuncT where
 
 
 instance Emittable AssignmentT where
-  emit (Assign _ name (Expr expr)) = emit expr <$*> movTo name
-  emit (ValueAssign name (Expr expr)) = emit expr <$*> movTo name
+  emit (Assign _ name expr) = emit expr <$*> movTo name
+  emit (ValueAssign name expr) = emit expr <$*> movTo name
   emit (EmptyAssign _ _) = Right ""
-  emit (OpAssign op name (Expr expr)) =
+  emit (OpAssign op name expr) =
     emit $ ValueAssign name
-         $ Expr $ Binary op (Var name) expr
-  emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
+         $ Binary op (Var name) expr 
 
 
 instance Emittable ExprT where
@@ -127,12 +126,14 @@ instance Emittable ExprT where
   emit (CallFunc fName fArgs) =
     if null fArgs
       then emitBlock
-        [ emit $ reverse fArgs
-        , emitNLn $ "call " <> fName
+        [ nLine
+        , emit $ reverse fArgs
+        , emitNLn $ "call __func_" <> fName
         ]
       else emitBlock
-        [ emit $ reverse fArgs
-        , emitNLn $ "call " <> fName
+        [ nLine
+        , emit $ reverse fArgs
+        , emitNLn $ "call __func_" <> fName
         , emitNLn $ "add esp, " <> show (length fArgs * 4)
         ]
   emit (Unary op expr) =
@@ -164,7 +165,6 @@ instance Emittable ExprT where
 
 
 instance Emittable LoopT where
-  emit (For forHeader fBofy) = undefined
   emit (While cond body) =
     emitBlock
       [ nLine
@@ -183,6 +183,7 @@ instance Emittable LoopT where
 
       loopStart :: String
       loopStart = (<> "_wloop") $ getRandomLbl newStdGen
+  emit (For forHeader fBofy) = undefined
 
 
 instance Emittable ForHeaderT where

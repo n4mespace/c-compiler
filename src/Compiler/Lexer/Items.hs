@@ -76,7 +76,8 @@ assignStmt = do
   typeOfVar <- typeOfExpr
   varName <- identifier
   reservedOp "="
-  expr <- simpleExpr
+  expr <- expression
+  _ <- semi
   return $ Assignment $ Assign typeOfVar varName expr
 
 emptyAssignStmt :: Parser StmtT
@@ -90,14 +91,16 @@ assignValueStmt :: Parser StmtT
 assignValueStmt = do
   varName <- identifier
   reservedOp "="
-  expr <- simpleExpr
+  expr <- expression
+  _ <- semi
   return $ Assignment $ ValueAssign varName expr
 
 opAssignStmt :: Parser StmtT
 opAssignStmt = do
   varName <- identifier
   op <- typeOfAssignOp
-  expr <- simpleExpr
+  expr <- expression
+  _ <- semi
   return $ Assignment $ OpAssign op varName expr
 
 typeOfAssignOp :: Parser BinOp
@@ -166,11 +169,11 @@ forLoopHeader :: Parser ForHeaderT
 forLoopHeader = do
   initClause <- try assignmentStmt <|> nullStmt
   condClause <- try simpleExpr <|> nullStmt
-  postClause <- try assignmentWithoutSemicolonOrNull <|> return Null
+  postClause <- try assignmentWithoutSemi <|> return Null
   return $ ForHeader initClause condClause postClause
 
-assignmentWithoutSemicolonOrNull :: Parser StmtT
-assignmentWithoutSemicolonOrNull = do
+assignmentWithoutSemi :: Parser StmtT
+assignmentWithoutSemi = do
   input <- getInput
   let parensEndIdx = fromJust $ elemIndex ')' input
   setInput $ uncurry ((++) . (++ ";"))
