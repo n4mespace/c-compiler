@@ -15,6 +15,7 @@ int fib(int n) {
         d = j + c;
         j = c;
         c = d;
+        continue;
     }
 
     return d;

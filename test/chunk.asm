@@ -30,11 +30,11 @@ __func_fib:
 	pop ebx
 	add eax, ebx
 	mov dword ptr [ebp - 16], eax
+		
 	
+	jmp __uepeqt_for_cond
 	
-	jmp __lrvmzt_for_cond
-	
-__hqjjxl_for_loop:
+__vwgdzp_for_loop:
 	mov eax, dword ptr [ebp - 16]
 	push eax
 	mov eax, dword ptr [ebp - 8]
@@ -53,7 +53,7 @@ __hqjjxl_for_loop:
 	add eax, ebx
 	mov dword ptr [ebp - 4], eax
 	
-__lrvmzt_for_cond:
+__uepeqt_for_cond:
 	mov eax, 2
 	push eax
 	mov eax, dword ptr [ebp + 8]
@@ -65,7 +65,7 @@ __lrvmzt_for_cond:
 	cmp eax, ebx
 	setl al
 	cmp eax, 1
-	je __hqjjxl_for_loop
+	je __vwgdzp_for_loop
 	mov eax, dword ptr [ebp - 12]
 	
 	leave

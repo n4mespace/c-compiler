@@ -68,6 +68,8 @@ class Checkable p where
 
 instance Checkable StmtT where
   check Null = return Null
+  check Break = return Break
+  check Continue = return Continue
   check (Func func) = Func <$> check func
   check (Loop loop) = Loop <$> check loop
   check (Assignment assign) = Assignment <$> check assign

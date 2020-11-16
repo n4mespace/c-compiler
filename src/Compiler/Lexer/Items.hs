@@ -13,18 +13,18 @@ import           Text.ParserCombinators.Parsec
 
 -- | Parse code inside EOFs
 mainParser :: Parser StmtT
-mainParser = whiteSpace >> statements <* eof
+mainParser = whiteSpace >> statements stmtsInBlock <* eof
 
-statements :: Parser StmtT
-statements = do
-  list <- many statement'
+statements :: Parser StmtT -> Parser StmtT
+statements stmtList = do
+  list <- many stmtList
   return $
     case length list of
       0 -> error "Empty block of code"
       _ -> Block list
 
-statement' :: Parser StmtT
-statement' = choice
+stmtsInBlock :: Parser StmtT
+stmtsInBlock = choice
   [ try returnStmt
   , try ifElseStmt
   , try ifStmt
@@ -32,29 +32,69 @@ statement' = choice
   , try simpleExpr
   , try loopStmt
   , try funcStmt
-  , try blockOfStmts
+  , try blockStmts
   ]
 
-blockOfStmts :: ParsecT String () Identity StmtT
-blockOfStmts = braces statements
+blockStmts :: ParsecT String () Identity StmtT
+blockStmts = braces $ statements stmtsInBlock
+
+stmtsInBody :: Parser StmtT
+stmtsInBody = choice
+  [ try returnStmt
+  , try ifElseStmt
+  , try ifStmt
+  , try assignmentStmt
+  , try simpleExpr
+  , try loopStmt
+  , try bodyStmts
+  ]
+
+bodyStmts :: ParsecT String () Identity StmtT
+bodyStmts = braces $ statements stmtsInBody
+
+stmtsInLoop :: Parser StmtT
+stmtsInLoop = choice
+  [ try returnStmt
+  , try ifElseStmt
+  , try ifStmt
+  , try assignmentStmt
+  , try simpleExpr
+  , try loopStmt
+  , try breakStmt
+  , try continueStmt
+  , try loopStmts
+  ]
+
+loopStmts :: ParsecT String () Identity StmtT
+loopStmts = braces $ statements stmtsInLoop
 
 nullStmt :: Parser StmtT
 nullStmt = Null <$ semi
+
+breakStmt :: Parser StmtT
+breakStmt = do
+  reserved "break"
+  Break <$ semi
+
+continueStmt :: Parser StmtT
+continueStmt = do
+  reserved "continue"
+  Continue <$ semi
 
 ifElseStmt :: Parser StmtT
 ifElseStmt = do
   reserved "if"
   cond <- parens expression
-  stmt1 <- blockOfStmts
+  stmt1 <- bodyStmts
   reserved "else"
-  stmt2 <- blockOfStmts
+  stmt2 <- bodyStmts
   return $ IfElse cond stmt1 stmt2
 
 ifStmt :: Parser StmtT
 ifStmt = do
   reserved "if"
   cond <- parens expression
-  stmt <- blockOfStmts
+  stmt <- bodyStmts
   return $ If cond stmt
 
 returnStmt :: Parser StmtT
@@ -144,7 +184,7 @@ defineFuncStmt = do
   typeOfFunc <- typeOfExpr
   name <- identifier
   params <- parens $ commaSep funcParam
-  body <- blockOfStmts
+  body <- bodyStmts
   return $ Func $ DefineFunc typeOfFunc name params body
 
 loopStmt :: Parser StmtT
@@ -155,14 +195,14 @@ whileLoop :: Parser StmtT
 whileLoop = do
   reserved "while"
   cond <- parens expression
-  body <- blockOfStmts
+  body <- loopStmts
   return $ Loop $ While cond body
 
 forLoop :: Parser StmtT
 forLoop = do
   reserved "for"
   header <- parens forLoopHeader
-  body <- blockOfStmts
+  body <- loopStmts
   return $ Loop $ For header body
 
 forLoopHeader :: Parser ForHeaderT

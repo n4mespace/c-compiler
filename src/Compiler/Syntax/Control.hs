@@ -13,8 +13,8 @@ data Stmt a
   | Func (Func a)
   | Expr (Expr a)
   | Return (Stmt a)
-  -- | Break
-  -- | Continue
+  | Break
+  | Continue
   | Null
   deriving (Show)
 
