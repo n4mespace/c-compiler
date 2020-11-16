@@ -32,9 +32,9 @@ __func_fib:
 	mov dword ptr [ebp - 16], eax
 	
 	
-	jmp __cgubxz_for_cond
+	jmp __yoyoqw_for_cond
 	
-__tyuwis_for_start:
+__dmahpe_for_start:
 	
 	mov eax, 2
 	push eax
@@ -47,10 +47,10 @@ __tyuwis_for_start:
 	cmp eax, ebx
 	setl al
 	cmp eax, 0
-	jne __ufpequ_if
-	je __sbvqhb_else
+	jne __hmlyyj_if
+	je __zgabtq_else
 	
-__ufpequ_if:
+__hmlyyj_if:
 	mov eax, dword ptr [ebp - 16]
 	push eax
 	mov eax, dword ptr [ebp - 8]
@@ -61,19 +61,19 @@ __ufpequ_if:
 	mov dword ptr [ebp - 8], eax
 	mov eax, dword ptr [ebp - 12]
 	mov dword ptr [ebp - 16], eax
-	jmp __cgubxz_for_cond
+	jmp __yoyoqw_for_cond
 	mov eax, 2
 	push eax
 	mov eax, dword ptr [ebp - 16]
 	pop ebx
 	add eax, ebx
 	mov dword ptr [ebp - 16], eax
-	jmp __bmisqy_endif
+	jmp __vzburb_endif
 	
-__sbvqhb_else:
-	jmp __bulyax_for_end
+__zgabtq_else:
+	jmp __lrokku_for_end
 	
-__bmisqy_endif:
+__vzburb_endif:
 	
 	mov eax, 1
 	push eax
@@ -82,11 +82,11 @@ __bmisqy_endif:
 	add eax, ebx
 	mov dword ptr [ebp - 4], eax
 	
-__cgubxz_for_cond:
+__yoyoqw_for_cond:
 	cmp eax, 1
-	je __tyuwis_for_start
+	je __dmahpe_for_start
 	
-__bulyax_for_end:
+__lrokku_for_end:
 	mov eax, dword ptr [ebp - 12]
 	
 	leave

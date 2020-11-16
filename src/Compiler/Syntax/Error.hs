@@ -1,5 +1,6 @@
 module Compiler.Syntax.Error where
 
+
 data Err a
   = UnExpectedType a
   | BadReturn
@@ -8,5 +9,6 @@ data Err a
   | TypesMissmatch a a
   | BadExpression String
   | ReservedName String
-  deriving (Show)
-
+  | LexerError
+  | Error
+  deriving (Show, Read, Eq)

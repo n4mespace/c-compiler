@@ -1,7 +1,7 @@
 module Compiler.Types where
 
 import           Compiler.Syntax.Control
-import           Compiler.Syntax.Error          (Err)
+import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
 
 import           Control.Monad.Trans.State.Lazy (StateT)
@@ -12,7 +12,7 @@ data Type
   = INT_T
   | CHAR_T
   | BOOL_T
-  deriving (Show, Eq)
+  deriving (Show, Eq, Read)
 
 -- | Typed syntax construction
 type StmtT = Stmt Type

@@ -18,21 +18,15 @@ import           System.Random              (newStdGen)
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program =
   case addMainFuncCall (emit program) of
+    Left e -> print e >> fail "asm gen error"
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       destination `writeFile` asm
       putStrLn "Press ENTER to exit..." <* getLine
-    Left e -> print e >> fail "asm gen error"
 
-generateString :: StmtT -> IO String
-generateString program =
-  case addMainFuncCall (emit program) of
-    Right asm -> do
-      putStrLn "\n{-# GENERATED .ASM #-}"
-      putStrLn asm
-      return asm
-    Left e -> print e >> fail "asm gen error"
+generateString :: Either ErrT StmtT -> Either ErrT String
+generateString = (>>= addMainFuncCall . emit)
 
 
 -- | Make program capable to generate asm code

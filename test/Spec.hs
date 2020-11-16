@@ -5,42 +5,46 @@ module Main where
 import           Test.Hspec
 import           Text.Heredoc
 
+import           Compiler.Errors
+import           Compiler.Types  (ErrT)
+
 import qualified Lib
 
 -- | Run test cases
 main :: IO ()
-main = hspec $ do
+main = hspec $ parallel $ do
   -- Success cases
   describe "Test.Compiler.SuccessCases" $ do
-    it "test1: simple return" $ mustCompile test1
-    it "test2: assign expr to a var" $ mustCompile test2
-    it "test3: using var in expr" $ mustCompile test3
-    it "test4: complex expr with vars" $ mustCompile test4
-    it "test5: if with scoped vars" $ mustCompile test5
-    it "test6: multiple scopes" $ mustCompile test6
-    it "test7: big scoped expr" $ mustCompile test7
-    it "test8: assign with operator" $ mustCompile test8
-    it "test9: function calls with different params" $ mustCompile test9
-    it "test10: fibonachi with while loop" $ mustCompile test10
+    it "test1: simple return" $ withoutError test1
+    it "test2: assign expr to a var" $ withoutError test2
+    it "test3: using var in expr" $ withoutError test3
+    it "test4: complex expr with vars" $ withoutError test4
+    it "test5: if with scoped vars" $ withoutError test5
+    it "test6: multiple scopes" $ withoutError test6
+    it "test7: big scoped expr" $ withoutError test7
+    it "test8: assign with operator" $ withoutError test8
+    it "test9: function calls with different params" $ withoutError test9
+    it "test10: fibonachi with while loop" $ withoutError test10
+
   -- Failure cases
   describe "Test.Compiler.FailureCases" $ do
-    it "test1: uninitialized var" $ mustNotCompile test1'
-    it "test2: missing operand" $ mustNotCompile test2'
-    it "test3: redefining a var" $ mustNotCompile test3'
-    it "test4: using var from inner scope" $ mustNotCompile test4'
-    it "test5: using var from if stmt scope" $ mustNotCompile test5'
-    it "test6: using assing operator without var declaration" $ mustNotCompile test6'
-    it "test7: function main is missing" $ mustNotCompile test7'
-    it "test8: var from while loop" $ mustNotCompile test8'
+    it "test1: uninitialized var" $ test1' `withError` uninitVarErr "a"
+    it "test2: missing operand" $ test2' `withError` lexerErr
+    it "test3: redefining a var" $ test3' `withError` alreadyDeclaredVarErr "a"
+    it "test4: using var from inner scope" $ test4' `withError` unknownVarErr "a"
+    it "test5: using var from if stmt scope" $ test5' `withError` unknownVarErr "a"
+    it "test6: using assing operator without var declaration" $ test6' `withError` unknownVarErr "a"
+    it "test7: function main is missing" $ test7' `withError` mainFuncNotFoundErr
+    it "test8: var from while loop" $ test8' `withError` unknownVarErr "k"
 
   where
-    mustCompile :: String -> Expectation
-    mustCompile test =
-      Lib.compileString test >>= (`shouldSatisfy` (not . null))
+    withoutError :: String -> Expectation
+    withoutError test =
+      Lib.compileString test `shouldSatisfy` (not . null)
 
-    mustNotCompile :: String -> Expectation
-    mustNotCompile test =
-      Lib.compileString test `shouldThrow` anyException
+    withError :: String -> Either ErrT String -> Expectation
+    withError test err =
+      Lib.compileString test `shouldBe` err
 
 -- Test cases
 test1 :: String

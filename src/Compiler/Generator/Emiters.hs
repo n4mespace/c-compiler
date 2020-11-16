@@ -8,12 +8,24 @@ import           System.IO.Unsafe (unsafePerformIO)
 import           System.Random    (StdGen, randomRs)
 
 -- Helpers
-emitBlock :: [Either ErrT String] -> Either ErrT String
-emitBlock = (concat <$>) . sequence
-
 (<$*>) :: Either ErrT String -> Either ErrT String -> Either ErrT String
 expr1 <$*> expr2 = (<>) <$> expr1 <*> expr2
 infixr 6 <$*>
+
+emitBlock :: [Either ErrT String] -> Either ErrT String
+emitBlock = foldr1 (<$*>)
+
+emitLoopBlock :: String -> String -> [Either ErrT String] -> Either ErrT String
+emitLoopBlock lblStart lblEnd =
+  foldr1 (\acc x -> acc <$*>
+    case x of
+      Right r -> Right $
+          replace "__continue" ("jmp " <> lblStart) .
+          replace "__break" ("jmp " <> lblEnd) $ r
+      err -> err)
+  where
+    replace :: String -> String -> String -> String
+    replace old new = intercalate new . splitOn old
 
 emitNLn :: String -> Either ErrT String
 emitNLn = Right . ("\n\t" <>)
@@ -147,15 +159,3 @@ addMainFuncCall emitedProgram =
     , emitNLn "mov b, eax"
     , nLine
     ]
-
-emitLoopBlock :: String -> String -> [Either ErrT String] -> Either ErrT String
-emitLoopBlock loopStart loopEnd =
-  foldr1 (\acc x -> acc <$*>
-    case x of
-      Right r -> Right $
-          replace "__continue" ("jmp " <> loopStart) .
-          replace "__break" ("jmp " <> loopEnd) $ r
-      err -> err)
-  where
-    replace :: String -> String -> String -> String
-    replace old new = intercalate new . splitOn old
