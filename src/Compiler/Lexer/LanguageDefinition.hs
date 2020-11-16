@@ -178,7 +178,6 @@ operators =
   [ [ Prefix (reservedOp "-" >> return (Unary Neg))
     , Prefix (reservedOp "~" >> return (Unary Complement))
     , Prefix (reservedOp "!" >> return (Unary Not))
-    , Infix (reservedOp "==" >> return (Binary Equal)) AssocLeft
     ]
   , [ Infix (reservedOp "&" >> return (Binary And)) AssocLeft
     , Infix (reservedOp "|" >> return (Binary Or)) AssocLeft
@@ -188,8 +187,10 @@ operators =
     ]
   , [ Infix (reservedOp "+" >> return (Binary Add)) AssocLeft
     , Infix (reservedOp "-" >> return (Binary Subtract)) AssocLeft
-    , Infix (reservedOp ">" >> return (Binary Greater)) AssocLeft
+    ]
+  , [ Infix (reservedOp ">" >> return (Binary Greater)) AssocLeft
     , Infix (reservedOp "<" >> return (Binary Less)) AssocLeft
+    , Infix (reservedOp "==" >> return (Binary Equal)) AssocLeft
     ]
   ]
 

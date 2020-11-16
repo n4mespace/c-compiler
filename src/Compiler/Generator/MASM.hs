@@ -42,6 +42,7 @@ class Emittable p where
 
 
 instance Emittable StmtT where
+  emit Null = emitLn ""
   emit (Block stmts) = emit stmts
   emit (Func func) = emit func
   emit (Assignment assign) = emit assign
@@ -179,15 +180,32 @@ instance Emittable LoopT where
       ]
     where
       loopCond :: String
-      loopCond = (<> "_while") $ getRandomLbl newStdGen
+      loopCond = (<> "_while_cond") $ getRandomLbl newStdGen
 
       loopStart :: String
-      loopStart = (<> "_wloop") $ getRandomLbl newStdGen
-  emit (For forHeader fBofy) = undefined
+      loopStart = (<> "_while_loop") $ getRandomLbl newStdGen
+  emit (For (ForHeader init cond post) body) =
+    emitBlock
+      [ nLine
+      , emit init
+      , nLine
+      , goTo loopCond
+      , nLine
+      , emitLbl loopStart
+      , emit body
+      , nLine
+      , emit post
+      , nLine
+      , emitLbl loopCond
+      , emit cond
+      , goToIfNot loopStart
+      ]
+    where
+      loopCond :: String
+      loopCond = (<> "_for_cond") $ getRandomLbl newStdGen
 
-
-instance Emittable ForHeaderT where
-  emit (ForHeader init cond post) = undefined
+      loopStart :: String
+      loopStart = (<> "_for_loop") $ getRandomLbl newStdGen
 
 
 instance Emittable a => Emittable [a] where
