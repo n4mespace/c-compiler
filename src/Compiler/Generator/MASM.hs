@@ -155,7 +155,7 @@ instance Emittable ExprT where
 
 instance Emittable LoopT where
   emit (While cond body) =
-    emitBlock
+    emitLoopBlock loopCond loopEnd
       [ nLine, goTo loopCond
       , nLine, emitLbl loopStart
       , emit body
