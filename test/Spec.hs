@@ -25,6 +25,8 @@ main = hspec $ parallel $ do
     it "test8: assign with operator" $ withoutError test8
     it "test9: function calls with different params" $ withoutError test9
     it "test10: fibonachi with while loop" $ withoutError test10
+    it "test11: loop without post clause" $ withoutError test11
+    it "test12: break and continue in loop" $ withoutError test12
 
   -- Failure cases
   describe "Test.Compiler.FailureCases" $ do
@@ -36,6 +38,7 @@ main = hspec $ parallel $ do
     it "test6: using assing operator without var declaration" $ test6' `withError` unknownVarErr "a"
     it "test7: function main is missing" $ test7' `withError` mainFuncNotFoundErr
     it "test8: var from while loop" $ test8' `withError` unknownVarErr "k"
+    it "test9: var from for header" $ test9' `withError` unknownVarErr "i"
 
   where
     withoutError :: String -> Expectation
@@ -199,6 +202,45 @@ test10 = [str|
              |}
              |]
 
+test11 :: String
+test11 = [str|
+             |int factorial(int n);
+             |
+             |int main() {
+             |    return factorial(10);
+             |}
+             |
+             |int factorial(int n) {
+             |    int c = 1;
+             |    for (int i = 2; i < n - 1;) {
+             |        c *= i;
+             |        i += 1;
+             |    }
+             |    return c;
+             |}
+             |]
+
+test12 :: String
+test12 = [str|
+             |int fact(int n) {
+             |    int c = 1;
+             |    for (int i = 2;;) {
+             |        if (!(i < n - 1)) {
+             |            c *= i;
+             |            i += 1;
+             |        } else {
+             |            break;
+             |        }
+             |        continue;
+             |        i *= 100;
+             |    }
+             |    return c;
+             |}
+             |
+             |int main() {
+             |    return fact(10);
+             |}
+             |]
 
 test1' :: String
 test1' = [str|
@@ -289,5 +331,20 @@ test8' = [str|
              |        int k = 4;
              |    }
              |    return i + k;
+             |}
+             |]
+
+test9' :: String
+test9' = [str|
+             |int loop(int n) {
+             |    for (int i = 0;;) {
+             |        i += 1;
+             |    }
+             |    return i;
+             |}
+             |
+             |int main() {
+             |    int f = loop(10);
+             |    return f;
              |}
              |]

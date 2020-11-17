@@ -62,7 +62,7 @@ executable c-compiler
       Paths_c_compiler
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -haddock
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -haddock -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
   build-depends:
       base >=4.7 && <5
     , parsec
@@ -81,7 +81,7 @@ test-suite c-compiler-tests
       Paths_c_compiler
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
   build-depends:
       base >=4.7 && <5
     , parsec

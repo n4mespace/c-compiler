@@ -176,7 +176,9 @@ instance Emittable LoopT where
       , emit body
       , nLine, emit post
       , nLine, emitLbl loopCond
-      , emit cond
+      , if cond /= Null
+          then emit cond
+          else emit $ BOOL True
       , goToIfNot loopStart
       , nLine, emitLbl loopEnd
       ]

@@ -16,12 +16,12 @@ data Stmt a
   | Break
   | Continue
   | Null
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Func a
   = DeclareFunc a Name [FParam a]
   | DefineFunc a Name [FParam a] (Stmt a)
-  deriving (Show)
+  deriving (Show, Eq)
 
 data FParam a =
   FParam a Name
@@ -32,16 +32,16 @@ data Assignment a
   | EmptyAssign a Name
   | ValueAssign Name (Expr a)
   | OpAssign BinOp Name (Expr a)
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Loop a
   = While (Expr a) (Stmt a)
   | For (ForHeader a) (Stmt a)
-  deriving (Show)
+  deriving (Show, Eq)
 
 data ForHeader a =
   ForHeader (Stmt a) (Stmt a) (Stmt a)
-  deriving (Show)
+  deriving (Show, Eq)
 
 instance Eq a => Eq (FParam a) where
   FParam t _ == FParam t' _ = t == t'

@@ -180,7 +180,7 @@ instance Checkable FuncT where
       funcNothing :: GlobalState FuncT
       funcNothing = do
         modify $ addIdToEnv (currScope, fName)
-                            (0, True, fName, fParams)
+                            (0, True, "", fParams)
         DefineFunc fType fName <$>
                    check fParams <*>
                    check fBody
@@ -196,12 +196,12 @@ instance Checkable FuncT where
     envIdLookup fName funcNothing funcJust
 
   check (DeclareFunc fType fName fParams) = do
-    (currScope, currFunc, _) <- get
+    (currScope, _, _) <- get
     let
       funcNothing :: GlobalState FuncT
       funcNothing = do
         modify $ addIdToEnv (currScope, fName)
-                            (0, False, currFunc, fParams)
+                            (0, False, "", fParams)
         return $ DeclareFunc fType fName fParams
 
       funcJust :: Env -> CurrScope -> GlobalState FuncT
