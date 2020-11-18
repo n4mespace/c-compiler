@@ -1,302 +1,268 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Compiler.Parser.Checkers where
 
+import           Compiler.Parser.Common
+
 import           Compiler.Syntax.Control
-import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
+
+import           Compiler.Errors
 import           Compiler.Types
 
 import           Control.Monad.Trans.Class      (lift)
 import           Control.Monad.Trans.State.Lazy
+
 import qualified Data.Map.Strict                as M
 
-checkerProgram :: StmtT -> GlobalEnv -> Either ErrT StmtT
-checkerProgram ast initialEnv = do
-  (checkedAst, (_, envMap)) <- runStateT (checker ast) initialEnv
+runChecker :: StmtT -> GlobalEnv -> Either ErrT StmtT
+runChecker ast env = do
+  (checkedAst, (_, _, envMap)) <- runStateT (check ast) env
   let
-    undefinedFunc :: EnvMap
-    undefinedFunc = M.filter (\(_, defined, _) -> not defined) envMap
+    undefObjects :: EnvMap
+    undefObjects =
+      M.filter (\(_, defined, _, _) -> not defined) $
+               M.delete (-1, "") envMap
 
   case envMap M.!? (0, "main") of
-    Nothing -> Left $ BadExpression "Cannot find main function"
+    Nothing -> mainFuncNotFoundErr
     Just _ ->
-      if M.size undefinedFunc == 1
+      if M.size undefObjects == 0
         then return checkedAst
-        else Left $ BadExpression
-                  $ "Found undefined functions:" <>
-                    concatMap (\(_, name) -> name <> " ")
-                              (M.keys undefinedFunc)
+        else undefinedObjectsErr undefObjects
 
-checker :: StmtT -> GlobalState
-checker code = do
-  g <- get
-  let (currScope, envMap) = g
 
-  case code of
-    Func func -> checkerFunc g func
+-- | Make program capable to be checked
+class Checkable p where
+  check :: p -> GlobalState p
+  {-# MINIMAL check #-}
 
-    Block block ->
-      withScope $
-        case block of
-          []  -> lift $ Left BadReturn
-          [s] -> Block . (: []) <$> checker s
-          ss  -> Block <$> traverse checker ss
 
-    Assignment assignment ->
-      case assignment of
-        Assign aType aName expr -> do
-          envIdLookup g aName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing = do
-              checkedExpr <- checker expr
-              modify $ addIdToEnv
-                       (currScope, aName)
-                       (ebpOffset, True, [])
-              return $ Assignment $ Assign aType (constructAddress ebpOffset) checkedExpr
+instance Checkable StmtT where
+  check Null = return Null
+  check Break = return Break
+  check Continue = return Continue
+  check (Func func) = Func <$> check func
+  check (Loop loop) = Loop <$> check loop
+  check (Assignment assign) = Assignment <$> check assign
+  check (Expr expr) = Expr <$> check expr
+  check (Return stmt) = Return <$> check stmt
+  check (Block []) = lift emptyBlockErr
+  check (Block block) = withScope $ Block <$> mapM check block
+  check (If expr stmt) = If <$> check expr <*> check stmt
+  check (IfElse expr stmt1 stmt2) =
+    IfElse <$> check expr <*> check stmt1 <*>
+                              check stmt2
 
-            funcJust :: Env -> GlobalState
-            funcJust _ = do
-              (updatedScope, _) <- get
-              if updatedScope < currScope
-                then funcNothing
-                else lift $ Left $ BadExpression
-                          $ "Already declared var: " <> aName
 
-            ebpOffset :: EbpOffset
-            ebpOffset = getMaxFromMap envMap + 4
+instance Checkable ExprT where
+  check (Var vName) = do
+    let
+      funcNothing :: GlobalState ExprT
+      funcNothing = lift $ unknownVarErr vName
 
-        EmptyAssign aType aName -> do
-          envIdLookup g aName (funcNothing 0) funcJust
-          where
-            funcNothing :: EbpOffset -> GlobalState
-            funcNothing offset = do
-              modify $ addIdToEnv
-                       (currScope, aName)
-                       (offset, False, [])
-              return $ Assignment
-                     $ EmptyAssign aType (constructAddress offset)
+      funcJust :: Env -> CurrScope -> GlobalState ExprT
+      funcJust (offset, defined, _, _) _ =
+        if defined
+          then return $ Var $ constructAddress offset
+          else lift $ uninitVarErr vName
 
-            funcJust :: Env -> GlobalState
-            funcJust _ = do
-              (updatedScope, _) <- get
-              if updatedScope <= currScope
-                then funcNothing ebpOffset
-                else lift $ Left $ BadExpression
-                          $ "Already declared var: " <> aName
+    envIdLookup vName funcNothing funcJust
 
-            ebpOffset :: EbpOffset
-            ebpOffset = getMaxFromMap envMap + 4
+  check (CallFunc fName fArgs) = do
+    let
+      funcNothing :: GlobalState ExprT
+      funcNothing = lift $ unknownFuncErr fName
 
-        ValueAssign aName expr -> do
-          envIdLookup g aName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing =
-              lift $ Left $ BadExpression $ "Unknown var: " <> aName
+      funcJust :: Env -> CurrScope -> GlobalState ExprT
+      funcJust (_, _, _, fParams) _ =
+        if length fParams == length fArgs
+          then CallFunc fName <$> check fArgs
+          else lift $ wrongNumArgsErr fName fParams
 
-            funcJust :: Env -> GlobalState
-            funcJust (_, False, _) = do
-                checkedExpr <- checker expr
-                modify $ addIdToEnv
-                         (currScope, aName)
-                         (ebpOffset, True, [])
-                return $ Assignment $ ValueAssign (constructAddress ebpOffset) checkedExpr
-            funcJust (offset, _, _) =
-               Assignment . ValueAssign (constructAddress offset)
-                                     <$> checker expr
+    envIdLookup fName funcNothing funcJust
 
-            ebpOffset :: EbpOffset
-            ebpOffset = getMaxFromMap envMap + 4
+  check (Binary op expr1 expr2) =
+    Binary op <$> check expr1 <*> check expr2
 
-        OpAssign op aName expr -> do
-          envIdLookup g aName funcNothing funcJust
-          where
-            funcNothing :: GlobalState
-            funcNothing =
-              lift $ Left $ BadExpression
-                          $ "Unknown var: " <> aName
+  check (Unary op expr1) = Unary op <$> check expr1
 
-            funcJust :: Env -> GlobalState
-            funcJust (_, False, _) = do
-                checkedExpr <- checker expr
-                modify $ addIdToEnv
-                         (currScope, aName)
-                         (ebpOffset, True, [])
-                return $ Assignment $ OpAssign op (constructAddress ebpOffset) checkedExpr
-            funcJust (offset, _, _) =
-              Assignment . OpAssign
-                op (constructAddress offset) <$> checker expr
+  check c@(Const _) = return c
 
-            ebpOffset :: EbpOffset
-            ebpOffset = getMaxFromMap envMap + 4
 
-    Expr v@(Var _) ->
-      case checkerExpr g v of
-        Left e    -> lift $ Left e
-        Right var -> return $ Expr var
+instance Checkable AssignmentT where
+  check (Assign aType aName expr) = do
+    (currScope, currFunc, envMap) <- get
+    let
+      funcNothing :: GlobalState AssignmentT
+      funcNothing = do
+        expr' <- check expr
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
+        return $ Assign aType (constructAddress ebpOffset) expr'
 
-    Expr (Binary op expr1 expr2) ->
-      case Binary op <$> checkerExpr g expr1
-                     <*> checkerExpr g expr2 of
-        Left e    -> lift $ Left e
-        Right bin -> return $ Expr bin
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust _ updatedScope =
+        if updatedScope < currScope
+          then funcNothing
+          else lift $ alreadyDeclaredVarErr aName
 
-    Expr (Unary op expr) ->
-      case Unary op <$> checkerExpr g expr of
-        Left e  -> lift $ Left e
-        Right v -> return $ Expr v
+      ebpOffset :: EbpOffset
+      ebpOffset = getNextMin envMap currFunc
 
-    Expr f@(CallFunc _ _) ->
-      case checkerExpr g f of
-        Left e     -> lift $ Left e
-        Right func -> return $ Expr func
+    envIdLookup aName funcNothing funcJust
 
-    If expr stmt -> If <$> checker expr <*> checker stmt
+  check (EmptyAssign aType aName) = do
+    (currScope, currFunc, envMap) <- get
+    let
+      funcNothing :: EbpOffset -> GlobalState AssignmentT
+      funcNothing offset = do
+        modify $ addIdToEnv (currScope, aName)
+                            (offset, False, currFunc, [])
+        return $ EmptyAssign aType (constructAddress offset)
 
-    IfElse expr stmt1 stmt2 ->
-      IfElse <$> checker expr <*> checker stmt1 <*> checker stmt2
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust _ updatedScope =
+        if updatedScope < currScope
+          then funcNothing ebpOffset
+          else lift $ alreadyDeclaredVarErr aName
 
-    Return stmt -> Return <$> checker stmt
+      ebpOffset :: EbpOffset
+      ebpOffset = getNextMin envMap currFunc
 
-    stmt -> return stmt
+    envIdLookup aName (funcNothing 0) funcJust
 
-checkerFunc :: GlobalEnv -> FuncT -> GlobalState
-checkerFunc g@(currScope, _) func =
-  case func of
-    DefineFunc fType fName fParams fBody ->
-      envIdLookup g fName funcNothing funcJust
-      where
-        funcNothing :: GlobalState
-        funcNothing = do
-          modify $ addIdToEnv
-                   (currScope, fName)
-                   (0, True, fParams)
-          Func <$> (DefineFunc fType fName
-                <$> checkerParams g fParams
-                <*> checker fBody)
+  check (ValueAssign aName expr) = do
+    (currScope, currFunc, envMap) <- get
+    let
+      funcNothing :: GlobalState AssignmentT
+      funcNothing = lift $ unknownVarErr aName
 
-        funcJust :: Env -> GlobalState
-        funcJust (_, False, fParams') =
-          if fParams == fParams'
-            then funcNothing
-            else
-              lift $ Left $ BadExpression
-                   $ "Different parameters in declaration " <>
-                     "and definition " <>
-                     "in function: " <> fName
-        funcJust _ =
-          lift $ Left $ BadExpression
-                      $ "Multiple function definition: " <> fName
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust (_, False, _, _) _ = do
+        expr' <- check expr
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
+        return $ ValueAssign (constructAddress ebpOffset) expr'
+      funcJust (offset, _, _, _) _ =
+        ValueAssign (constructAddress offset) <$> check expr
 
-    DeclareFunc fType fName fParams ->
-      envIdLookup g fName funcNothing funcJust
-      where
-        funcNothing :: GlobalState
-        funcNothing = do
-          modify $ addIdToEnv
-                   (currScope, fName)
-                   (0, False, fParams)
-          return $ Func $ DeclareFunc fType fName fParams
+      ebpOffset :: EbpOffset
+      ebpOffset = getNextMin envMap currFunc
 
-        funcJust :: Env -> GlobalState
-        funcJust _ =
-          lift $ Left $ BadExpression
-                      $ "Already declared function: " <> fName
+    envIdLookup aName funcNothing funcJust
 
-checkerArgs :: GlobalEnv -> [FArgsT] -> Either ErrT [FArgsT]
-checkerArgs _ [] = Right []
-checkerArgs g ((Arg arg):args) =
-  (:) . Arg <$> checkerExpr g arg <*> checkerArgs g args
+  check (OpAssign op aName expr) = do
+    (currScope, currFunc, envMap) <- get
+    let
+      funcNothing :: GlobalState AssignmentT
+      funcNothing = lift $ unknownVarErr aName
 
-checkerParams :: GlobalEnv
-              -> [FParamsT]
-              -> StateT GlobalEnv (Either ErrT) [FParamsT]
-checkerParams _ [] = return []
-checkerParams g@(currScope, _) ((Param t pName):params) = do
-  modify $ addIdToEnv
-           (currScope, pName)
-           (ebpOffset, True, [])
-  (Param t (constructAddress ebpOffset) :) <$> checkerParams g params
-  where
-    ebpOffset :: EbpOffset
-    ebpOffset = (length params + 2) * (-4)
+      funcJust :: Env -> CurrScope -> GlobalState AssignmentT
+      funcJust (_, False, _, _) _ = do
+        checkedExpr <- check expr
+        modify $ addIdToEnv (currScope, aName)
+                            (ebpOffset, True, currFunc, [])
+        return $ OpAssign op (constructAddress ebpOffset) checkedExpr
+      funcJust (offset, _, _, _) _ =
+        OpAssign op (constructAddress offset) <$> check expr
 
-envIdLookup :: GlobalEnv
-            -> Name
-            -> GlobalState
-            -> (Env -> GlobalState)
-            -> GlobalState
-envIdLookup (currScope, envMap) aName funcNothing funcJust =
-  case M.lookup (currScope, aName) envMap of
-    Nothing -> do
-      if currScope /= 0
-        then envIdLookup (currScope - 1, envMap) aName funcNothing funcJust
-        else funcNothing
-    Just env -> funcJust env
+      ebpOffset :: EbpOffset
+      ebpOffset = getNextMin envMap currFunc
 
-checkerExpr :: GlobalEnv -> ExprT -> Either ErrT ExprT
-checkerExpr (currScope, envMap) v@(Var vName) =
-  case M.lookup (currScope, vName) envMap of
-    Nothing ->
-      if currScope /= 0
-        then checkerExpr (currScope - 1, envMap) v
-        else Left $ BadExpression $ "Unknown var: " <> vName
-    Just (offset, defined, _) ->
-      if defined
-        then Right $ Var $ constructAddress offset
-        else Left $ BadExpression $ "Uninitialized var: " <> vName
+    envIdLookup aName funcNothing funcJust
 
-checkerExpr g@(scope, _) f@(CallFunc fName fArgs) = go g f
-  where
-    go :: GlobalEnv -> ExprT -> Either ErrT ExprT
-    go (currScope', envMap') f' =
-      case M.lookup (currScope', fName) envMap' of
-        Nothing ->
-          if scope /= 0
-            then go (currScope' - 1, envMap') f'
-            else Left $ BadExpression $ "Unknown function: " <> fName
-        Just (_, _, fParams) ->
-          if length fParams == length fArgs
-            then CallFunc fName <$> checkerArgs g fArgs
-            else
-              Left $ BadExpression
-                   $ "Wrong number of arguments in function: " <> fName <>
-                     ". Must be: " <> show (length fParams) <> " args"
 
-checkerExpr g (Binary op expr1 expr2) =
-  Binary op <$> checkerExpr g expr1 <*> checkerExpr g expr2
+instance Checkable FuncT where
+  check (DefineFunc fType fName fParams fBody) = do
+    (currScope, _, _) <- get
+    let
+      funcNothing :: GlobalState FuncT
+      funcNothing = do
+        modify $ addIdToEnv (currScope, fName)
+                            (0, True, "", fParams)
+        DefineFunc fType fName <$>
+                   check fParams <*>
+                   check fBody
 
-checkerExpr g (Unary op expr) = Unary op <$> checkerExpr g expr
-checkerExpr _ expr = Right expr
+      funcJust :: Env -> CurrScope -> GlobalState FuncT
+      funcJust (_, False, _, fParams') _ =
+        if fParams == fParams'
+          then funcNothing
+          else lift $ differentParamsErr fName
+      funcJust _ _ = lift $ alreadyDefinedFuncErr fName
 
--- Helpers
-constructAddress :: EbpOffset -> String
-constructAddress offset =
-  if offset > 0
-    then "dword ptr [ebp - " <> show offset <> "]"
-    else "dword ptr [ebp + " <> show (offset * (-1)) <> "]"
+    modify $ setFuncScope fName
+    envIdLookup fName funcNothing funcJust
 
-getMaxFromMap :: EnvMap -> EbpOffset
-getMaxFromMap envMap = maximum $
-  (\(offset, _, _) -> offset) <$> M.elems envMap
+  check (DeclareFunc fType fName fParams) = do
+    (currScope, _, _) <- get
+    let
+      funcNothing :: GlobalState FuncT
+      funcNothing = do
+        modify $ addIdToEnv (currScope, fName)
+                            (0, False, "", fParams)
+        return $ DeclareFunc fType fName fParams
 
-addIdToEnv :: ScopedName
-           -> Env
-           -> GlobalEnv
-           -> GlobalEnv
-addIdToEnv scopedName (offset, defined, params) (currScope, env) =
-  ( currScope
-  , M.insert
-      scopedName
-      (offset, defined, params)
-      env
-  )
+      funcJust :: Env -> CurrScope -> GlobalState FuncT
+      funcJust _ _ = lift $ alreadyDeclaredFuncErr fName
 
-nextScope :: GlobalEnv -> GlobalEnv
-nextScope (currScope, envMap) = (currScope + 1, envMap)
+    envIdLookup fName funcNothing funcJust
 
-prevScope :: GlobalEnv -> GlobalEnv
-prevScope (currScope, envMap) = (currScope - 1, envMap)
 
-withScope :: GlobalState -> GlobalState
-withScope st = modify nextScope >> st <* modify prevScope
+instance Checkable LoopT where
+  check (While cond body) =
+    While <$> check cond <*> check body
+
+  check (For forHeader body) =
+    For <$> check forHeader <*> check body
+
+
+instance Checkable ForHeaderT where
+  check (ForHeader init cond post) = do
+    let
+      init' :: GlobalState StmtT
+      init' = case init of
+        Null                  -> check Null
+        assign@(Assignment _) -> check assign
+        _                     -> lift initClauseErr
+
+      cond' :: GlobalState StmtT
+      cond' = case cond of
+        Null          -> check Null
+        expr@(Expr _) -> check expr
+        _             -> lift condClauseErr
+
+      post' :: GlobalState StmtT
+      post' = case post of
+        Null                              -> check Null
+        assign@(Assignment ValueAssign{}) -> check assign
+        assign@(Assignment OpAssign{})    -> check assign
+        _                                 -> lift postClauseErr
+
+    withScope $
+      ForHeader <$> init' <*> cond' <*> post'
+
+
+instance Checkable FArgT where
+  check (FArg expr) = FArg <$> check expr
+
+
+instance Checkable [FArgT] where
+  check [] = return []
+  check (arg:args) =
+    (:) <$> check arg <*> check args
+
+
+instance Checkable [FParamT] where
+  check [] = return []
+  check ((FParam t pName):params) = do
+    (currScope, currFunc, _) <- get
+    let
+      ebpOffset :: EbpOffset
+      ebpOffset = (length params + 2) * 4
+
+    modify $ addIdToEnv (currScope, pName)
+                        (ebpOffset, True, currFunc, [])
+
+    (FParam t (constructAddress ebpOffset) :) <$> check params

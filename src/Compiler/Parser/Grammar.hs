@@ -1,25 +1,28 @@
 module Compiler.Parser.Grammar where
 
-import           Compiler.Parser.Checkers
+import           Compiler.Errors               (lexerErr)
+import           Compiler.Parser.Checkers      (runChecker)
+import           Compiler.Parser.Common        (initialEnv)
 import           Compiler.Types
 
-import qualified Data.Map.Strict          as M
-import           Text.Pretty.Simple       (CheckColorTty (CheckColorTty),
-                                           OutputOptions (..),
-                                           defaultOutputOptionsDarkBg,
-                                           pPrintOpt)
+import           Text.ParserCombinators.Parsec (ParseError)
 
-checkGrammar :: StmtT -> IO StmtT
-checkGrammar ast =
-  case checkerProgram ast initialEnv of
+import           Text.Pretty.Simple            (CheckColorTty (CheckColorTty),
+                                                OutputOptions (..),
+                                                defaultOutputOptionsDarkBg,
+                                                pPrintOpt)
+
+checkFile :: StmtT -> IO StmtT
+checkFile ast =
+  case runChecker ast initialEnv of
     Left e -> print e >> fail "parser error"
     Right checkedAst -> do
       putStrLn "\n{-# GENERATED AST-TOKENS #-}"
       pretty ast
       return checkedAst
   where
-    initialEnv :: GlobalEnv
-    initialEnv = (-1, M.singleton (-1, "") (0, False, []))
+    pretty :: StmtT -> IO ()
+    pretty = pPrintOpt CheckColorTty opts
 
     opts :: OutputOptions
     opts = defaultOutputOptionsDarkBg
@@ -28,5 +31,8 @@ checkGrammar ast =
       , outputOptionsCompact = True
       }
 
-    pretty :: StmtT -> IO ()
-    pretty = pPrintOpt CheckColorTty opts
+checkString :: Either ParseError StmtT -> Either ErrT StmtT
+checkString ast =
+  case ast of
+    Left e     -> lexerErr
+    Right ast' -> runChecker ast' initialEnv

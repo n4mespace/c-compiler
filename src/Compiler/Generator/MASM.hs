@@ -8,70 +8,65 @@ module Compiler.Generator.MASM
 import           Compiler.Generator.Emiters
 
 import           Compiler.Syntax.Control
-import           Compiler.Syntax.Error      (Err (..))
 import           Compiler.Syntax.Expression
+
 import           Compiler.Types
 
 import           System.Random              (newStdGen)
 
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program =
-  case addMainFuncCall (emit program) of
+  case runEmitter program of
+    Left e -> print e >> fail "asm gen error"
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       destination `writeFile` asm
       putStrLn "Press ENTER to exit..." <* getLine
-    Left e -> print e >> fail "asm gen error"
 
-generateString :: StmtT -> IO String
-generateString program =
-  case addMainFuncCall (emit program) of
-    Right asm -> do
-      putStrLn "\n{-# GENERATED .ASM #-}"
-      putStrLn asm
-      return asm
-    Left e -> print e >> fail "asm gen error"
+generateString :: Either ErrT StmtT -> Either ErrT String
+generateString = (>>= runEmitter)
+
+runEmitter :: StmtT -> Either ErrT String
+runEmitter = addMainFuncCall . checkBreakAndContinue . emit
 
 -- | Make program capable to generate asm code
 class Emittable p where
   emit :: p -> Either ErrT String
   {-# MINIMAL emit #-}
 
+
 instance Emittable StmtT where
   emit (Block stmts) = emit stmts
   emit (Func func) = emit func
   emit (Assignment assign) = emit assign
-  emit (Return Null) = Right ""
-  emit (Return (Expr expr)) = emit expr
-  emit (If (Expr cond) stmt) =
+  emit (Loop loop) = emit loop
+  emit (Return exprOrNull) =
     emitBlock
-      [ nLine
-      , emit cond
-      , nLine
-      , goToIf endLbl
-      , nLine
-      , emit stmt
-      , nLine
-      , emitLbl endLbl
+      [ emit exprOrNull
+      , nLine, ret
+      ]
+  emit (If cond stmt) =
+    emitBlock
+      [ nLine, emit cond
+      , nLine, goToIf endLbl
+      , nLine, emit stmt
+      , nLine, emitLbl endLbl
       ]
     where
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
-  emit (IfElse (Expr cond) stmt1 stmt2) =
+
+  emit (IfElse cond stmt1 stmt2) =
     emitBlock
-      [ nLine
-      , emit cond
+      [ nLine, emit cond
       , goToIfElse ifLbl elseLbl
-      , nLine
-      , emitLbl ifLbl
+      , nLine, emitLbl ifLbl
       , emit stmt1
       , goTo endLbl
-      , nLine
-      , emitLbl elseLbl
+      , nLine, emitLbl elseLbl
       , emit stmt2
-      , nLine
-      , emitLbl endLbl
+      , nLine, emitLbl endLbl
       ]
     where
       ifLbl :: String
@@ -82,32 +77,33 @@ instance Emittable StmtT where
 
       endLbl :: String
       endLbl = (<> "_endif") $ getRandomLbl newStdGen
+
   emit (Expr expr) = emit expr
-  emit unknown = Left $ BadExpression $ "unknown statement: " <> show unknown
+  emit Continue = emitNLn "__continue"
+  emit Break = emitNLn "__break"
+  emit Null = return ""
+
 
 instance Emittable FuncT where
   emit (DefineFunc _ fName _ fBody@(Block stmts)) =
     emitBlock
-      [ nLine
-      , emitLbl $ "__func_" <> fName
+      [ nLine, emitLbl $ "__func_" <> fName
       , emitNLn $ "enter " <> show (length stmts * 4) <> ", 0"
-      , nLine
-      , emit fBody
-      , nLine
-      , emitNLn "leave"
-      , emitNLn "ret"
+      , nLine, emit fBody
+      , case last stmts of
+          Return _ -> emitLn ""
+          _        -> ret
       ]
-  emit _ = Right ""
+  emit _ = return ""
 
 
 instance Emittable AssignmentT where
-  emit (Assign _ name (Expr expr)) = emit expr <$*> movTo name
-  emit (ValueAssign name (Expr expr)) = emit expr <$*> movTo name
+  emit (Assign _ name expr) = emit expr <$*> movTo name
+  emit (ValueAssign name expr) = emit expr <$*> movTo name
   emit (EmptyAssign _ _) = Right ""
-  emit (OpAssign op name (Expr expr)) =
+  emit (OpAssign op name expr) =
     emit $ ValueAssign name
-         $ Expr $ Binary op (Var name) expr
-  emit unknown = Left $ BadExpression $ "Cannot assign: " <> show unknown
+         $ Binary op (Var name) expr
 
 
 instance Emittable ExprT where
@@ -115,10 +111,13 @@ instance Emittable ExprT where
   emit (Const c) = emitNLn "mov eax, " <$*> emit c
   emit (CallFunc fName fArgs) =
     if null fArgs
-      then emit (reverse fArgs) <$*> emitNLn ("call " <> fName)
+      then emitBlock
+        [ nLine, emit fArgs
+        , emitNLn $ "call __func_" <> fName
+        ]
       else emitBlock
-        [ emit (reverse fArgs)
-        , emitNLn ("call " <> fName)
+        [ nLine, emit fArgs
+        , emitNLn $ "call __func_" <> fName
         , emitNLn $ "add esp, " <> show (length fArgs * 4)
         ]
   emit (Unary op expr) =
@@ -148,16 +147,61 @@ instance Emittable ExprT where
         , f
         ]
 
+
+instance Emittable LoopT where
+  emit (While cond body) =
+    emitLoopBlock loopCond loopEnd
+      [ nLine, goTo loopCond
+      , nLine, emitLbl loopStart
+      , emit body
+      , nLine, emitLbl loopCond
+      , emit cond
+      , goToIfNot loopStart
+      , nLine, emitLbl loopEnd
+      ]
+    where
+      loopCond :: String
+      loopCond = (<> "_while_cond") $ getRandomLbl newStdGen
+
+      loopStart :: String
+      loopStart = (<> "_while_start") $ getRandomLbl newStdGen
+
+      loopEnd :: String
+      loopEnd = (<> "_while_end") $ getRandomLbl newStdGen
+
+  emit (For (ForHeader init cond post) body) =
+    emitLoopBlock loopCond loopEnd
+      [ nLine, emit init
+      , nLine, goTo loopCond
+      , nLine, emitLbl loopStart
+      , emit body
+      , nLine, emit post
+      , nLine, emitLbl loopCond
+      , if cond /= Null
+          then emit cond <$*> goToIfNot loopStart
+          else goTo loopStart
+      , nLine, emitLbl loopEnd
+      ]
+    where
+      loopCond :: String
+      loopCond = (<> "_for_cond") $ getRandomLbl newStdGen
+
+      loopStart :: String
+      loopStart = (<> "_for_start") $ getRandomLbl newStdGen
+
+      loopEnd :: String
+      loopEnd = (<> "_for_end") $ getRandomLbl newStdGen
+
+
 instance Emittable a => Emittable [a] where
   emit = emitBlock . (emit <$>)
 
-instance Emittable FArgsT where
-  emit (Arg expr) = emit expr <$*> pushEax
+
+instance Emittable FArgT where
+  emit (FArg expr) = emit expr <$*> pushEax
+
 
 instance Emittable C where
-  emit (INT i) = Right $ show i
+  emit (INT i)  = Right $ show i
   emit (CHAR c) = Right $ show c
-  emit (BOOL b) =
-    if b
-      then Right "1"
-      else Right "0"
+  emit (BOOL b) = if b then Right "1" else Right "0"

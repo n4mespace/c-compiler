@@ -5,18 +5,18 @@ data Expr a
   | Const C
   | Binary BinOp (Expr a) (Expr a)
   | Unary UnOp (Expr a)
-  | CallFunc String [FArgs a]
-  deriving (Show)
+  | CallFunc String [FArg a]
+  deriving (Show, Eq)
 
-newtype FArgs a =
-  Arg (Expr a)
-  deriving (Show)
+newtype FArg a =
+  FArg (Expr a)
+  deriving (Show, Eq)
 
 data C
   = INT Integer
   | CHAR Char
   | BOOL Bool
-  deriving (Show)
+  deriving (Show, Eq)
 
 data BinOp
   = Add
@@ -29,10 +29,10 @@ data BinOp
   | Greater
   | Less
   | Equal
-  deriving (Show)
+  deriving (Show, Eq)
 
 data UnOp
   = Neg
   | Not
   | Complement
-  deriving (Show)
+  deriving (Show, Eq)

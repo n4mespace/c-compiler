@@ -30,10 +30,12 @@ library
   exposed-modules:
       Lib
       Compiler.Types
+      Compiler.Errors
       Compiler.Lexer.Parse
       Compiler.Lexer.Items
       Compiler.Lexer.LanguageDefinition
       Compiler.Parser.Grammar
+      Compiler.Parser.Common
       Compiler.Parser.Checkers
       Compiler.Generator.MASM
       Compiler.Generator.Emiters
@@ -51,6 +53,7 @@ library
     , containers
     , transformers
     , random
+    , split
   default-language: Haskell2010
 
 executable c-compiler
@@ -59,7 +62,7 @@ executable c-compiler
       Paths_c_compiler
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -haddock
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -haddock -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
   build-depends:
       base >=4.7 && <5
     , parsec
@@ -68,6 +71,7 @@ executable c-compiler
     , containers
     , random
     , transformers
+    , split
   default-language: Haskell2010
 
 test-suite c-compiler-tests
@@ -77,7 +81,7 @@ test-suite c-compiler-tests
       Paths_c_compiler
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-tabs -funfolding-use-threshold=16 -fexcess-precision -optc-O3 -optc-ffast-math
   build-depends:
       base >=4.7 && <5
     , parsec

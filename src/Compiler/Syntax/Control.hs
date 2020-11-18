@@ -7,30 +7,41 @@ type Name = String
 data Stmt a
   = Block [Stmt a]
   | Assignment (Assignment a)
-  | If (Stmt a) (Stmt a)
-  | IfElse (Stmt a) (Stmt a) (Stmt a)
+  | If (Expr a) (Stmt a)
+  | IfElse (Expr a) (Stmt a) (Stmt a)
+  | Loop (Loop a)
   | Func (Func a)
   | Expr (Expr a)
   | Return (Stmt a)
+  | Break
+  | Continue
   | Null
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Func a
-  = DeclareFunc a Name [FParams a]
-  | DefineFunc a Name [FParams a] (Stmt a)
-  deriving (Show)
+  = DeclareFunc a Name [FParam a]
+  | DefineFunc a Name [FParam a] (Stmt a)
+  deriving (Show, Eq)
 
-data FParams a =
-  Param a Name
+data FParam a =
+  FParam a Name
   deriving (Show)
 
 data Assignment a
-  = Assign a Name (Stmt a)
+  = Assign a Name (Expr a)
   | EmptyAssign a Name
-  | ValueAssign Name (Stmt a)
-  | OpAssign BinOp Name (Stmt a)
-  deriving (Show)
+  | ValueAssign Name (Expr a)
+  | OpAssign BinOp Name (Expr a)
+  deriving (Show, Eq)
 
-instance Eq a => Eq (FParams a) where
-  Param t _ == Param t' _ = t == t'
+data Loop a
+  = While (Expr a) (Stmt a)
+  | For (ForHeader a) (Stmt a)
+  deriving (Show, Eq)
 
+data ForHeader a =
+  ForHeader (Stmt a) (Stmt a) (Stmt a)
+  deriving (Show, Eq)
+
+instance Eq a => Eq (FParam a) where
+  FParam t _ == FParam t' _ = t == t'

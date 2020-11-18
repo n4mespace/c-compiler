@@ -1,22 +1,18 @@
-int addTwoIfFlag(int value, bool flag);
-int addOne(int value);
-
 int main() {
-    bool flag = true;
-    char ch = 'c';
-    int a = addOne(8);
-    int b = addTwoIfFlag(a * 2, flag);
-    return addTwoIfFlag(ch + 1, !flag);
-}
+    int outer = 1;
+    int inner = outer;
 
-int addOne(int v) {
-    return v + 1;
-}
+    while (outer < 7) {
+        for (; inner < 10; inner += 1) {
+            inner *= outer;
+            while (true) {
+                break;
+            }
+        }
+        outer += 1;
 
-int addTwoIfFlag(int v, bool f) {
-    if (f) {
-        return v;
-    } else {
-        return v + 2;
+        continue;
+        outer *= 100;
     }
+    return outer + inner;
 }

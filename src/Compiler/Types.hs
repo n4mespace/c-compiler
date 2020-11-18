@@ -1,7 +1,7 @@
 module Compiler.Types where
 
 import           Compiler.Syntax.Control
-import           Compiler.Syntax.Error          (Err)
+import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
 
 import           Control.Monad.Trans.State.Lazy (StateT)
@@ -12,18 +12,22 @@ data Type
   = INT_T
   | CHAR_T
   | BOOL_T
-  deriving (Show, Eq)
+  deriving (Show, Eq, Read)
 
 -- | Typed syntax construction
 type StmtT = Stmt Type
 
 type ExprT = Expr Type
 
-type FParamsT = FParams Type
+type FParamT = FParam Type
 
-type FArgsT = FArgs Type
+type FArgT = FArg Type
 
 type FuncT = Func Type
+
+type ForHeaderT = ForHeader Type
+
+type LoopT = Loop Type
 
 type AssignmentT = Assignment Type
 
@@ -38,6 +42,12 @@ type Scope = Int
 -- | Counter for scope depth
 type CurrScope = Int
 
+-- | Name of function scope
+type FuncName = String
+
+-- | Name of current function scope
+type CurrFuncName = String
+
 -- | Whether expr is defined
 type Defined = Bool
 
@@ -45,13 +55,13 @@ type Defined = Bool
 type ScopedName = (Scope, Name)
 
 -- | Value to EnvMap
-type Env = (EbpOffset, Defined, [FParamsT])
+type Env = (EbpOffset, Defined, FuncName, [FParamT])
 
 -- | Global map for extra info
 type EnvMap = Map ScopedName Env
 
 -- | Global state map
-type GlobalEnv = (CurrScope, EnvMap)
+type GlobalEnv = (CurrScope, CurrFuncName, EnvMap)
 
 -- | Global state for grammar check
-type GlobalState = StateT GlobalEnv (Either ErrT) StmtT
+type GlobalState a = StateT GlobalEnv (Either ErrT) a
