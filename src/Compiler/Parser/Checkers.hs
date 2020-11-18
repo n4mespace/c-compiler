@@ -2,12 +2,10 @@
 
 module Compiler.Parser.Checkers where
 
-import           Compiler.Parser.Common
-
-import           Compiler.Syntax.Control
-import           Compiler.Syntax.Expression
-
 import           Compiler.Errors
+import           Compiler.Parser.Common
+import           Compiler.Syntax.Expression
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import           Control.Monad.Trans.Class      (lift)

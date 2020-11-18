@@ -1,16 +1,14 @@
 module Compiler.Parser.Common where
 
 import           Compiler.Types
-
 import           Control.Monad.Trans.State.Lazy
 
 import qualified Data.Map.Strict                as M
 
-
+-- Helpers
 initialEnv :: GlobalEnv
 initialEnv = (-1, "", M.singleton (-1, "") (0, False, "", []))
 
--- Helpers
 envIdLookup :: String
             -> GlobalState a
             -> (Env -> CurrScope -> GlobalState a)

@@ -1,11 +1,11 @@
 module Compiler.Errors where
 
-import           Compiler.Syntax.Control (Name)
 import           Compiler.Syntax.Error
+import           Compiler.Syntax.Statement (Name)
 import           Compiler.Types
 
-import           Data.List               (intercalate)
-import           Data.Map.Strict         as M
+import           Data.List                 (intercalate)
+import           Data.Map.Strict           as M
 
 -- List of common errors
 undefinedObjectsErr :: EnvMap -> Either ErrT a
@@ -70,5 +70,3 @@ condClauseErr = Left $ BadExpression "Invalid condition clause"
 
 postClauseErr :: Either ErrT a
 postClauseErr = Left $ BadExpression "Invalid post clause"
-
-

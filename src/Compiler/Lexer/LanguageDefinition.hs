@@ -1,13 +1,14 @@
 module Compiler.Lexer.LanguageDefinition where
 
-import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import           Data.Functor.Identity               (Identity)
 import           Text.Parsec.Prim                    (ParsecT)
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Expr
+
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
 -- C language definition

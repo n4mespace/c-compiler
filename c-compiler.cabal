@@ -37,10 +37,10 @@ library
       Compiler.Parser.Grammar
       Compiler.Parser.Common
       Compiler.Parser.Checkers
-      Compiler.Generator.MASM
+      Compiler.Generator.MASM32
       Compiler.Generator.Emiters
       Compiler.Syntax.Expression
-      Compiler.Syntax.Control
+      Compiler.Syntax.Statement
       Compiler.Syntax.Error
   other-modules:
       Paths_c_compiler

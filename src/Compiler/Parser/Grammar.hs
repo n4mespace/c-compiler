@@ -6,7 +6,6 @@ import           Compiler.Parser.Common        (initialEnv)
 import           Compiler.Types
 
 import           Text.ParserCombinators.Parsec (ParseError)
-
 import           Text.Pretty.Simple            (CheckColorTty (CheckColorTty),
                                                 OutputOptions (..),
                                                 defaultOutputOptionsDarkBg,

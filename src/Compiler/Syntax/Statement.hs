@@ -1,4 +1,4 @@
-module Compiler.Syntax.Control where
+module Compiler.Syntax.Statement where
 
 import           Compiler.Syntax.Expression
 

@@ -1,8 +1,8 @@
 module Compiler.Lexer.Items where
 
 import           Compiler.Lexer.LanguageDefinition
-import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression        (BinOp (..))
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import           Data.Functor.Identity             (Identity)

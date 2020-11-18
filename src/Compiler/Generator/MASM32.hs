@@ -1,15 +1,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Compiler.Generator.MASM
+module Compiler.Generator.MASM32
   ( generateFile
   , generateString
   ) where
 
 import           Compiler.Generator.Emiters
-
-import           Compiler.Syntax.Control
 import           Compiler.Syntax.Expression
-
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import           System.Random              (newStdGen)

@@ -1,8 +1,8 @@
 module Compiler.Types where
 
-import           Compiler.Syntax.Control
 import           Compiler.Syntax.Error
 import           Compiler.Syntax.Expression
+import           Compiler.Syntax.Statement
 
 import           Control.Monad.Trans.State.Lazy (StateT)
 import           Data.Map.Strict                (Map)
