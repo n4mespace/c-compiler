@@ -1,21 +1,5 @@
 # c-compiler
 
-## To build with stack
-
-``` bash
->> stack build
->> stack exec c-compiler
-```
-
-## To build with cabal
-
-``` bash
->> cabal build
->> cabal install
-```
-and run your exe in /dist/build
-# c-compiler
-
 ## Description
 Compile C file into asm (masm32) chunk for using 
 it within cpp `__asm {}` for instance
