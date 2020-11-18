@@ -17,18 +17,18 @@ infixr 6 <$*>
 emitBlock :: [Either ErrT String] -> Either ErrT String
 emitBlock = foldr1 (<$*>)
 
-checkBreakAndContinue :: Either ErrT String -> Either ErrT String 
+checkBreakAndContinue :: Either ErrT String -> Either ErrT String
 checkBreakAndContinue ast = case ast of
   Right str ->
-    if findString "__continue" str
+    if "__continue" `inString` str
       then continueOutsideTheLoopErr
-      else if findString "__break" str
+      else if "__break" `inString` str
         then breakOutsideTheLoopErr
         else Right str
   err -> err
   where
-    findString :: String -> String -> Bool
-    findString search str =
+    inString :: String -> String -> Bool
+    inString search str =
       case isPrefixOf search `findIndex` tails str of
         Just _  -> True
         Nothing -> False

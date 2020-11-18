@@ -140,10 +140,10 @@ booleanFalse = do
 -- | Boolean false or true
 constBool :: ParsecT String () Identity ExprT
 constBool = booleanTrue <|> booleanFalse
- 
+
 -- | Bin and dec int values (also char converted to ascii)
 constInt :: ParsecT String () Identity ExprT
-constInt = choice 
+constInt = choice
   [ try (Const . INT <$> binaryInteger)
   , try (Const . INT <$> integer)
   , try (Const . INT . fromIntegral . fromEnum <$> singleChar)
@@ -162,7 +162,7 @@ callFunc = do
 
 -- | Lift expression to stmt
 exprStmt :: Parser StmtT
-exprStmt = Expr <$> expression 
+exprStmt = Expr <$> expression
 
 -- | Expression with ; at the end
 simpleExpr :: Parser StmtT
@@ -201,7 +201,7 @@ terms = choice
   , try callFunc
   , try var
   , try constInt
-  , try constBool 
+  , try constBool
   ] <?> "Constant arythmetic term"
 
 -- | Match operators and terms into expression

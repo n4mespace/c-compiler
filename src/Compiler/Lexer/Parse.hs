@@ -12,7 +12,7 @@ parseFile filePath = do
     program <- hGetContents handle
     putStrLn "\n{-# SOURCE PROGRAM #-}"
     putStrLn program
-    case parse mainParser "" program of
+    case parseString program of
       Left e  -> print e >> fail "lexer error"
       Right r -> return r
 

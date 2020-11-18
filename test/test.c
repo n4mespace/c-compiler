@@ -1,9 +1,18 @@
-int divByTen(int n) {
-    return n / 10;
-}
-
 int main() {
-    int one = divByTen(10);
-    break;
-    return one;
+    int outer = 1;
+    int inner = outer;
+
+    while (outer < 7) {
+        for (; inner < 10; inner += 1) {
+            inner *= outer;
+            while (true) {
+                break;
+            }
+        }
+        outer += 1;
+
+        continue;
+        outer *= 100;
+    }
+    return outer + inner;
 }
