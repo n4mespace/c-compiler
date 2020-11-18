@@ -58,14 +58,10 @@ nullStmt :: Parser StmtT
 nullStmt = Null <$ semi
 
 breakStmt :: Parser StmtT
-breakStmt = do
-  reserved "break"
-  Break <$ semi
+breakStmt = reserved "break" >> Break <$ semi
 
 continueStmt :: Parser StmtT
-continueStmt = do
-  reserved "continue"
-  Continue <$ semi
+continueStmt = reserved "continue" >> Continue <$ semi
 
 ifElseStmt :: Parser StmtT
 ifElseStmt = do

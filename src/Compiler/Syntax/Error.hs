@@ -11,4 +11,6 @@ data Err a
   | ReservedName String
   | LexerError
   | Error
+  | ContinueOutsideTheLoop
+  | BreakOutsideTheLoop
   deriving (Show, Read, Eq)

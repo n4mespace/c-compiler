@@ -108,7 +108,7 @@ instance Checkable AssignmentT where
           else lift $ alreadyDeclaredVarErr aName
 
       ebpOffset :: EbpOffset
-      ebpOffset = getNextMax envMap currFunc
+      ebpOffset = getNextMin envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
@@ -128,7 +128,7 @@ instance Checkable AssignmentT where
           else lift $ alreadyDeclaredVarErr aName
 
       ebpOffset :: EbpOffset
-      ebpOffset = getNextMax envMap currFunc
+      ebpOffset = getNextMin envMap currFunc
 
     envIdLookup aName (funcNothing 0) funcJust
 
@@ -148,7 +148,7 @@ instance Checkable AssignmentT where
         ValueAssign (constructAddress offset) <$> check expr
 
       ebpOffset :: EbpOffset
-      ebpOffset = getNextMax envMap currFunc
+      ebpOffset = getNextMin envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
@@ -168,7 +168,7 @@ instance Checkable AssignmentT where
         OpAssign op (constructAddress offset) <$> check expr
 
       ebpOffset :: EbpOffset
-      ebpOffset = getNextMax envMap currFunc
+      ebpOffset = getNextMin envMap currFunc
 
     envIdLookup aName funcNothing funcJust
 
@@ -260,7 +260,7 @@ instance Checkable [FParamT] where
     (currScope, currFunc, _) <- get
     let
       ebpOffset :: EbpOffset
-      ebpOffset = (length params + 2) * (-4)
+      ebpOffset = (length params + 2) * 4
 
     modify $ addIdToEnv (currScope, pName)
                         (ebpOffset, True, currFunc, [])

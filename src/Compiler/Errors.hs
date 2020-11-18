@@ -19,6 +19,12 @@ emptyBlockErr = Left EmptyBlock
 lexerErr :: Either ErrT a
 lexerErr = Left LexerError
 
+breakOutsideTheLoopErr :: Either ErrT a
+breakOutsideTheLoopErr = Left BreakOutsideTheLoop
+
+continueOutsideTheLoopErr :: Either ErrT a
+continueOutsideTheLoopErr = Left ContinueOutsideTheLoop
+
 -- Identifiers errors
 unknownVarErr :: Name -> Either ErrT a
 unknownVarErr = Left . BadExpression . ("Unknown var: " <>)

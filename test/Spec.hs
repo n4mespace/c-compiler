@@ -6,7 +6,8 @@ import           Test.Hspec
 import           Text.Heredoc
 
 import           Compiler.Errors
-import           Compiler.Types  (ErrT)
+import           Compiler.Syntax.Control
+import           Compiler.Types
 
 import qualified Lib
 
@@ -39,6 +40,9 @@ main = hspec $ parallel $ do
     it "test7: function main is missing" $ test7' `withError` mainFuncNotFoundErr
     it "test8: var from while loop" $ test8' `withError` unknownVarErr "k"
     it "test9: var from for header" $ test9' `withError` unknownVarErr "i"
+    it "test10: wrong args in function call" $ test10' `withError` wrongNumArgsErr "addOne" [FParam INT_T "v"]
+    it "test11: break outside the loop" $ test11' `withError` breakOutsideTheLoopErr
+    it "test12: continue outside the loop" $ test12' `withError` continueOutsideTheLoopErr
 
   where
     withoutError :: String -> Expectation
@@ -110,9 +114,9 @@ test6 = [str|
             |          if (a) {
             |              a = 4;
             |          }
-            |          return a;
             |      }
             |   }
+            |   return a;
             |}
             |]
 
@@ -348,3 +352,41 @@ test9' = [str|
              |    return f;
              |}
              |]
+
+test10' :: String
+test10' = [str|
+              |int addOne(int v) {
+              |    return v + 1;
+              |}
+              |
+              |int main() {
+              |    int a = addOne(8, 1);
+              |    return a;
+              |}
+              |]
+
+test11' :: String
+test11' = [str|
+              |int divByTen(int n) {
+              |    return n / 10;
+              |}
+              |
+              |int main() {
+              |    int one = divByTen(10);
+              |    break;
+              |    return one;
+              |}
+              |]
+
+test12' :: String
+test12' = [str|
+              |int divByTen(int n) {
+              |    return n / 10;
+              |}
+              |
+              |int main() {
+              |    int one = divByTen(10);
+              |    continue;
+              |    return one;
+              |}
+              |]

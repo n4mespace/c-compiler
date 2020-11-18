@@ -1,8 +1,10 @@
 module Compiler.Generator.Emiters where
 
+import           Compiler.Errors  (breakOutsideTheLoopErr,
+                                   continueOutsideTheLoopErr)
 import           Compiler.Types
 
-import           Data.List        (intercalate)
+import           Data.List        (findIndex, intercalate, isPrefixOf, tails)
 import           Data.List.Split  (splitOn)
 import           System.IO.Unsafe (unsafePerformIO)
 import           System.Random    (StdGen, randomRs)
@@ -15,14 +17,29 @@ infixr 6 <$*>
 emitBlock :: [Either ErrT String] -> Either ErrT String
 emitBlock = foldr1 (<$*>)
 
+checkBreakAndContinue :: Either ErrT String -> Either ErrT String 
+checkBreakAndContinue ast = case ast of
+  Right str ->
+    if findString "__continue" str
+      then continueOutsideTheLoopErr
+      else if findString "__break" str
+        then breakOutsideTheLoopErr
+        else Right str
+  err -> err
+  where
+    findString :: String -> String -> Bool
+    findString search str =
+      case isPrefixOf search `findIndex` tails str of
+        Just _  -> True
+        Nothing -> False
+
 emitLoopBlock :: String -> String -> [Either ErrT String] -> Either ErrT String
 emitLoopBlock lblStart lblEnd =
-  foldr1 (\acc x -> acc <$*>
-    case x of
-      Right r -> Right $
-          replace "__continue" ("jmp " <> lblStart) .
-          replace "__break" ("jmp " <> lblEnd) $ r
-      err -> err)
+  foldr1 $ \acc x -> acc <$*> case x of
+    Right r -> Right $
+      replace "__continue" ("jmp " <> lblStart) .
+      replace "__break" ("jmp " <> lblEnd) $ r
+    err -> err
   where
     replace :: String -> String -> String -> String
     replace old new = intercalate new . splitOn old

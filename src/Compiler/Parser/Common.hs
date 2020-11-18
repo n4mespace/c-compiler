@@ -33,19 +33,29 @@ envIdLookup name funcNothing funcJust = do
 constructAddress :: EbpOffset -> String
 constructAddress offset =
   if offset > 0
-    then "dword ptr [ebp - " <> show offset <> "]"
-    else "dword ptr [ebp + " <> show (offset * (-1)) <> "]"
+    then "dword ptr [ebp + " <> show offset <> "]"
+    else "dword ptr [ebp - " <> show (negate offset) <> "]"
 
-getNextMax :: EnvMap -> CurrFuncName -> EbpOffset
-getNextMax envMap currFunc =
-  if M.null currEnvMap
-    then 4
-    else 4 + maximum (
-      (\(offset, _, _, _) -> offset) <$> M.elems currEnvMap)
+mapNextFromCurrEnv :: (EnvMap -> EbpOffset)
+                   -> EnvMap
+                   -> CurrFuncName
+                   -> EbpOffset
+mapNextFromCurrEnv f envMap currFunc = f currEnvMap
   where
     currEnvMap :: EnvMap
     currEnvMap = M.filter
       (\(_, _, func, _) -> currFunc == func) envMap
+
+getNextMin :: EnvMap -> CurrFuncName -> EbpOffset
+getNextMin = mapNextFromCurrEnv minOffset
+  where
+    minOffset :: EnvMap -> EbpOffset
+    minOffset envMap'
+      | M.null envMap' = -4
+      | otherwise = minimum $
+        (\(offset, _, _, _) -> if offset >= 0
+            then -4
+            else offset - 4) <$> M.elems envMap'
 
 addIdToEnv :: ScopedName
            -> Env

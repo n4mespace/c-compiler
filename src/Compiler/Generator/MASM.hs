@@ -8,7 +8,6 @@ module Compiler.Generator.MASM
 import           Compiler.Generator.Emiters
 
 import           Compiler.Syntax.Control
-import           Compiler.Syntax.Error      (Err (..))
 import           Compiler.Syntax.Expression
 
 import           Compiler.Types
@@ -17,7 +16,7 @@ import           System.Random              (newStdGen)
 
 generateFile :: FilePath -> StmtT -> IO ()
 generateFile destination program =
-  case addMainFuncCall (emit program) of
+  case runEmitter program of
     Left e -> print e >> fail "asm gen error"
     Right asm -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
@@ -26,8 +25,10 @@ generateFile destination program =
       putStrLn "Press ENTER to exit..." <* getLine
 
 generateString :: Either ErrT StmtT -> Either ErrT String
-generateString = (>>= addMainFuncCall . emit)
+generateString = (>>= runEmitter)
 
+runEmitter :: StmtT -> Either ErrT String
+runEmitter = addMainFuncCall . checkBreakAndContinue . emit
 
 -- | Make program capable to generate asm code
 class Emittable p where
@@ -93,7 +94,7 @@ instance Emittable FuncT where
           Return _ -> emitLn ""
           _        -> ret
       ]
-  emit _ = Right ""
+  emit _ = return ""
 
 
 instance Emittable AssignmentT where
@@ -111,11 +112,11 @@ instance Emittable ExprT where
   emit (CallFunc fName fArgs) =
     if null fArgs
       then emitBlock
-        [ nLine, emit $ reverse fArgs
+        [ nLine, emit fArgs
         , emitNLn $ "call __func_" <> fName
         ]
       else emitBlock
-        [ nLine, emit $ reverse fArgs
+        [ nLine, emit fArgs
         , emitNLn $ "call __func_" <> fName
         , emitNLn $ "add esp, " <> show (length fArgs * 4)
         ]
@@ -177,9 +178,8 @@ instance Emittable LoopT where
       , nLine, emit post
       , nLine, emitLbl loopCond
       , if cond /= Null
-          then emit cond
-          else emit $ BOOL True
-      , goToIfNot loopStart
+          then emit cond <$*> goToIfNot loopStart
+          else goTo loopStart
       , nLine, emitLbl loopEnd
       ]
     where
