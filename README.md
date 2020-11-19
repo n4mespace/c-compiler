@@ -42,7 +42,7 @@ int main() {
 
 ## Usage example
 
->> test.c
+> test.c
 
 ```c
 int factLoop(int n);
@@ -74,7 +74,7 @@ int factRecursion(int n) {
 }
 ```
 
->> chunk.asm
+> chunk.asm
 
 ```assembly
         jmp __start_program
