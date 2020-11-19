@@ -1,4 +1,5 @@
 .stack-work/
+.ghc.*
 dist-newstyle/
 dist/
 *~
