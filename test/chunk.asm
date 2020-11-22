@@ -13,7 +13,7 @@ __func_main:
 	
 	mov eax, 10
 	push eax
-	call __func_factLoop
+	call __func_factRecursion
 	add esp, 4
 	mov dword ptr [ebp - 8], eax
 	
@@ -25,14 +25,14 @@ __func_main:
 	sete al
 	
 	cmp eax, 0
-	je __ofmdjx_endif
+	je __akevdt_endif
 	
 	mov eax, 0
 	
 	leave
 	ret
 	
-__ofmdjx_endif:
+__akevdt_endif:
 	mov eax, 1
 	
 	leave
@@ -47,9 +47,9 @@ __func_factLoop:
 	mov eax, 2
 	mov dword ptr [ebp - 8], eax
 	
-	jmp __caxaxl_for_cond
+	jmp __oeprhh_for_cond
 	
-__wtfddi_for_start:
+__ixxvxe_for_start:
 	mov eax, dword ptr [ebp - 8]
 	push eax
 	mov eax, dword ptr [ebp - 4]
@@ -64,7 +64,7 @@ __wtfddi_for_start:
 	mov dword ptr [ebp - 8], eax
 	
 	
-__caxaxl_for_cond:
+__oeprhh_for_cond:
 	mov eax, 1
 	push eax
 	mov eax, dword ptr [ebp + 8]
@@ -76,9 +76,9 @@ __caxaxl_for_cond:
 	cmp eax, ebx
 	setl al
 	cmp eax, 1
-	je __wtfddi_for_start
+	je __ixxvxe_for_start
 	
-__lewqjb_for_end:
+__xixidx_for_end:
 	mov eax, dword ptr [ebp - 4]
 	
 	leave
@@ -96,14 +96,14 @@ __func_factRecursion:
 	setl al
 	
 	cmp eax, 0
-	je __dtgaoi_endif
+	je __pxxrye_endif
 	
 	mov eax, 1
 	
 	leave
 	ret
 	
-__dtgaoi_endif:
+__pxxrye_endif:
 	
 	mov eax, 1
 	push eax

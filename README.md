@@ -49,8 +49,8 @@ int factLoop(int n);
 int factRecursion(int n);
              
 int main() {
-	l = factLoop(10);
-	r = factRecursion(10);
+	int l = factLoop(10);
+	int r = factRecursion(10);
 	if (l == r) {
 		return 0;
 	}
