@@ -3,7 +3,7 @@ int factRecursion(int n);
              
 int main() {
 	int l = factLoop(10);
-	int r = factLoop(10);
+	int r = factRecursion(10);
 
 	if (l == r) {
 		return 0;

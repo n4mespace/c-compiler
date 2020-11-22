@@ -50,7 +50,7 @@ int factRecursion(int n);
              
 int main() {
 	l = factLoop(10);
-	r = factLoop(10);
+	r = factRecursion(10);
 	if (l == r) {
 		return 0;
 	}
@@ -91,7 +91,7 @@ __func_main:
 
         mov eax, 10
         push eax
-        call __func_factLoop
+        call __func_factRecursion
         add esp, 4
         mov dword ptr [ebp - 8], eax
 
