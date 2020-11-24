@@ -25,7 +25,9 @@ envIdLookup name funcNothing funcJust = do
         Just env@(_, _, func, _) ->
           if currFunc == func || func == ""
             then funcJust env scope
-            else funcNothing
+            else if scope /= 0
+              then go $ scope - 1 
+              else funcNothing
   go currScope
 
 constructAddress :: EbpOffset -> String

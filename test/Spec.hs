@@ -6,7 +6,7 @@ import           Test.Hspec
 import           Text.Heredoc
 
 import           Compiler.Errors
-import           Compiler.Syntax.Control
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import qualified Lib
