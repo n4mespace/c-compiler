@@ -20,7 +20,7 @@ generateFile destination program =
       putStrLn "\n{-# GENERATED .ASM #-}"
       putStrLn asm
       destination `writeFile` asm
-      putStrLn "Press ENTER to exit..." <* getLine
+      -- putStrLn "Press ENTER to exit..." <* getLine
 
 generateString :: Either ErrT StmtT -> Either ErrT String
 generateString = (>>= runEmitter)

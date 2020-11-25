@@ -49,8 +49,7 @@ instance Checkable StmtT where
   check (Block block) = withScope $ Block <$> mapM check block
   check (If expr stmt) = If <$> check expr <*> check stmt
   check (IfElse expr stmt1 stmt2) =
-    IfElse <$> check expr <*> check stmt1 <*>
-                              check stmt2
+    IfElse <$> check expr <*> check stmt1 <*> check stmt2
 
 
 instance Checkable ExprT where
