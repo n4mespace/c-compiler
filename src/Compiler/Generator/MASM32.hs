@@ -5,6 +5,7 @@ module Compiler.Generator.MASM32
   , generateString
   ) where
 
+import           Compiler.Errors            (pretty)
 import           Compiler.Generator.Emiters
 import           Compiler.Syntax.Expression
 import           Compiler.Syntax.Statement
@@ -12,21 +13,21 @@ import           Compiler.Types
 
 import           System.Random              (newStdGen)
 
-generateFile :: FilePath -> StmtT -> IO ()
-generateFile destination program =
-  case runEmitter program of
-    Left e -> print e >> fail "asm gen error"
-    Right asm -> do
+generateFile :: FilePath -> (Program, StmtT) -> IO ()
+generateFile destination (p, ast) =
+  case runEmitter p ast of
+    Left e -> pretty e >> fail "asm gen error"
+    Right asmCode -> do
       putStrLn "\n{-# GENERATED .ASM #-}"
-      putStrLn asm
-      destination `writeFile` asm
-      -- putStrLn "Press ENTER to exit..." <* getLine
+      putStrLn asmCode
+      destination `writeFile` asmCode
+      putStrLn "Press ENTER to exit..." <* getLine
 
-generateString :: Either ErrT StmtT -> Either ErrT String
-generateString = (>>= runEmitter)
+generateString :: (Program, Either ErrT StmtT) -> Either ErrT String
+generateString (p, ast) = ast >>= runEmitter p
 
-runEmitter :: StmtT -> Either ErrT String
-runEmitter = addMainFuncCall . checkBreakAndContinue . emit
+runEmitter :: Program -> StmtT -> Either ErrT String
+runEmitter p = addMainFuncCall . checkBreakAndContinue p . emit
 
 -- | Make program capable to generate asm code
 class Emittable p where

@@ -60,8 +60,11 @@ type Env = (EbpOffset, Defined, FuncName, [FParamT])
 -- | Global map for extra info
 type EnvMap = Map ScopedName Env
 
+-- | Program string
+type Program = String
+
 -- | Global state map
-type GlobalEnv = (CurrScope, CurrFuncName, EnvMap)
+type GlobalEnv = (CurrScope, CurrFuncName, EnvMap, Program)
 
 -- | Global state for grammar check
 type GlobalState a = StateT GlobalEnv (Either ErrT) a

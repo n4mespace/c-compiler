@@ -6,6 +6,8 @@ import           Compiler.Types
 
 import           Data.List        (findIndex, intercalate, isPrefixOf, tails)
 import           Data.List.Split  (splitOn)
+
+import           Control.Monad    ((>=>))
 import           System.IO.Unsafe (unsafePerformIO)
 import           System.Random    (StdGen, randomRs)
 
@@ -17,21 +19,9 @@ infixr 6 <$*>
 emitBlock :: [Either ErrT String] -> Either ErrT String
 emitBlock = foldr1 (<$*>)
 
-checkBreakAndContinue :: Either ErrT String -> Either ErrT String
-checkBreakAndContinue ast = case ast of
-  Right str ->
-    if "__continue" `inString` str
-      then continueOutsideTheLoopErr
-      else if "__break" `inString` str
-        then breakOutsideTheLoopErr
-        else Right str
-  err -> err
-  where
-    inString :: String -> String -> Bool
-    inString search str =
-      case isPrefixOf search `findIndex` tails str of
-        Just _  -> True
-        Nothing -> False
+checkBreakAndContinue :: Program -> Either ErrT String -> Either ErrT String
+checkBreakAndContinue p =
+  (>>= (continueOutsideTheLoopErr p >=> breakOutsideTheLoopErr p))
 
 emitLoopBlock :: String -> String -> [Either ErrT String] -> Either ErrT String
 emitLoopBlock lblStart lblEnd =

@@ -15,24 +15,31 @@ import qualified Data.Map.Strict                as M
 
 runChecker :: StmtT -> GlobalEnv -> Either ErrT StmtT
 runChecker ast env = do
-  (checkedAst, (_, _, envMap)) <- runStateT (check ast) env
+  (checkedAst, (_, _, envMap, p)) <- runStateT (check ast) env
   let
-    undefObjects :: EnvMap
-    undefObjects =
-      M.filter (\(_, defined, _, _) -> not defined) $
-               M.delete (-1, "") envMap
+    checkUndefObjects :: StmtT -> Either ErrT StmtT
+    checkUndefObjects ast' =
+      if M.null undefObjects
+        then return ast'
+        else undefinedObjectsErr p undefObjects
 
-  case envMap M.!? (0, "main") of
-    Nothing -> mainFuncNotFoundErr
-    Just _ ->
-      if M.size undefObjects == 0
-        then return checkedAst
-        else undefinedObjectsErr undefObjects
+    undefObjects :: EnvMap
+    undefObjects = M.filter
+      (\(_, defined, _, _) -> not defined) $
+      M.delete (-1, "") envMap
+
+    checkNoMainFunc :: StmtT -> Either ErrT StmtT
+    checkNoMainFunc ast' =
+      case envMap M.!? (0, "main") of
+        Nothing -> mainFuncNotFoundErr
+        Just _  -> return ast'
+
+  checkUndefObjects checkedAst >>= checkNoMainFunc
 
 
 -- | Make program capable to be checked
-class Checkable p where
-  check :: p -> GlobalState p
+class Checkable t where
+  check :: t -> GlobalState t
   {-# MINIMAL check #-}
 
 
@@ -54,28 +61,30 @@ instance Checkable StmtT where
 
 instance Checkable ExprT where
   check (Var vName) = do
+    (_, _, _, p) <- get
     let
       funcNothing :: GlobalState ExprT
-      funcNothing = lift $ unknownVarErr vName
+      funcNothing = lift $ unknownVarErr p vName
 
       funcJust :: Env -> CurrScope -> GlobalState ExprT
       funcJust (offset, defined, _, _) _ =
         if defined
           then return $ Var $ constructAddress offset
-          else lift $ uninitVarErr vName
+          else lift $ uninitVarErr p vName
 
     envIdLookup vName funcNothing funcJust
 
   check (CallFunc fName fArgs) = do
+    (_, _, _, p) <- get
     let
       funcNothing :: GlobalState ExprT
-      funcNothing = lift $ unknownFuncErr fName
+      funcNothing = lift $ unknownFuncErr p fName
 
       funcJust :: Env -> CurrScope -> GlobalState ExprT
       funcJust (_, _, _, fParams) _ =
         if length fParams == length fArgs
           then CallFunc fName <$> check fArgs
-          else lift $ wrongNumArgsErr fName fParams
+          else lift $ wrongNumArgsErr p fName fParams
 
     envIdLookup fName funcNothing funcJust
 
@@ -89,7 +98,7 @@ instance Checkable ExprT where
 
 instance Checkable AssignmentT where
   check (Assign aType aName expr) = do
-    (currScope, currFunc, envMap) <- get
+    (currScope, currFunc, envMap, p) <- get
     let
       funcNothing :: GlobalState AssignmentT
       funcNothing = do
@@ -102,7 +111,7 @@ instance Checkable AssignmentT where
       funcJust _ updatedScope =
         if updatedScope < currScope
           then funcNothing
-          else lift $ alreadyDeclaredVarErr aName
+          else lift $ alreadyDeclaredVarErr p aName
 
       ebpOffset :: EbpOffset
       ebpOffset = getNextMin envMap currFunc
@@ -110,19 +119,19 @@ instance Checkable AssignmentT where
     envIdLookup aName funcNothing funcJust
 
   check (EmptyAssign aType aName) = do
-    (currScope, currFunc, envMap) <- get
+    (currScope, currFunc, envMap, p) <- get
     let
       funcNothing :: EbpOffset -> GlobalState AssignmentT
       funcNothing offset = do
         modify $ addIdToEnv (currScope, aName)
                             (offset, False, currFunc, [])
-        return $ EmptyAssign aType (constructAddress offset)
+        return $ EmptyAssign aType $ constructAddress offset
 
       funcJust :: Env -> CurrScope -> GlobalState AssignmentT
       funcJust _ updatedScope =
         if updatedScope < currScope
           then funcNothing ebpOffset
-          else lift $ alreadyDeclaredVarErr aName
+          else lift $ alreadyDeclaredVarErr p aName
 
       ebpOffset :: EbpOffset
       ebpOffset = getNextMin envMap currFunc
@@ -130,10 +139,10 @@ instance Checkable AssignmentT where
     envIdLookup aName (funcNothing 0) funcJust
 
   check (ValueAssign aName expr) = do
-    (currScope, currFunc, envMap) <- get
+    (currScope, currFunc, envMap, p) <- get
     let
       funcNothing :: GlobalState AssignmentT
-      funcNothing = lift $ unknownVarErr aName
+      funcNothing = lift $ unknownVarErr p aName
 
       funcJust :: Env -> CurrScope -> GlobalState AssignmentT
       funcJust (_, False, _, _) _ = do
@@ -150,10 +159,10 @@ instance Checkable AssignmentT where
     envIdLookup aName funcNothing funcJust
 
   check (OpAssign op aName expr) = do
-    (currScope, currFunc, envMap) <- get
+    (currScope, currFunc, envMap, p) <- get
     let
       funcNothing :: GlobalState AssignmentT
-      funcNothing = lift $ unknownVarErr aName
+      funcNothing = lift $ unknownVarErr p aName
 
       funcJust :: Env -> CurrScope -> GlobalState AssignmentT
       funcJust (_, False, _, _) _ = do
@@ -172,7 +181,7 @@ instance Checkable AssignmentT where
 
 instance Checkable FuncT where
   check (DefineFunc fType fName fParams fBody) = do
-    (currScope, _, _) <- get
+    (currScope, _, _, p) <- get
     let
       funcNothing :: GlobalState FuncT
       funcNothing = do
@@ -186,14 +195,14 @@ instance Checkable FuncT where
       funcJust (_, False, _, fParams') _ =
         if fParams == fParams'
           then funcNothing
-          else lift $ differentParamsErr fName
-      funcJust _ _ = lift $ alreadyDefinedFuncErr fName
+          else lift $ differentParamsErr p fName
+      funcJust _ _ = lift $ alreadyDefinedFuncErr p fName
 
     modify $ setFuncScope fName
     envIdLookup fName funcNothing funcJust
 
   check (DeclareFunc fType fName fParams) = do
-    (currScope, _, _) <- get
+    (currScope, _, _, p) <- get
     let
       funcNothing :: GlobalState FuncT
       funcNothing = do
@@ -202,7 +211,7 @@ instance Checkable FuncT where
         return $ DeclareFunc fType fName fParams
 
       funcJust :: Env -> CurrScope -> GlobalState FuncT
-      funcJust _ _ = lift $ alreadyDeclaredFuncErr fName
+      funcJust _ _ = lift $ alreadyDeclaredFuncErr p fName
 
     envIdLookup fName funcNothing funcJust
 
@@ -216,29 +225,30 @@ instance Checkable LoopT where
 
 
 instance Checkable ForHeaderT where
-  check (ForHeader init cond post) = do
+  check (ForHeader ini cond post) = do
+    (_, _, _, p) <- get
     let
-      init' :: GlobalState StmtT
-      init' = case init of
-        Null                  -> check Null
+      ini' :: GlobalState StmtT
+      ini' = case ini of
+        Null                  -> return Null
         assign@(Assignment _) -> check assign
         _                     -> lift initClauseErr
 
       cond' :: GlobalState StmtT
       cond' = case cond of
-        Null          -> check Null
+        Null          -> return Null
         expr@(Expr _) -> check expr
         _             -> lift condClauseErr
 
       post' :: GlobalState StmtT
       post' = case post of
-        Null                              -> check Null
+        Null                              -> return Null
         assign@(Assignment ValueAssign{}) -> check assign
         assign@(Assignment OpAssign{})    -> check assign
         _                                 -> lift postClauseErr
 
     withScope $
-      ForHeader <$> init' <*> cond' <*> post'
+      ForHeader <$> ini' <*> cond' <*> post'
 
 
 instance Checkable FArgT where
@@ -254,7 +264,7 @@ instance Checkable [FArgT] where
 instance Checkable [FParamT] where
   check [] = return []
   check ((FParam t pName):params) = do
-    (currScope, currFunc, _) <- get
+    (currScope, currFunc, _, p) <- get
     let
       ebpOffset :: EbpOffset
       ebpOffset = (length params + 2) * 4

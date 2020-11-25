@@ -6,15 +6,15 @@ import           Control.Monad.Trans.State.Lazy
 import qualified Data.Map.Strict                as M
 
 -- Helpers
-initialEnv :: GlobalEnv
-initialEnv = (-1, "", M.singleton (-1, "") (0, False, "", []))
+initialEnv :: Program -> GlobalEnv
+initialEnv p = (-1, "", M.singleton (-1, "") (0, False, "", []), p)
 
 envIdLookup :: String
             -> GlobalState a
             -> (Env -> CurrScope -> GlobalState a)
             -> GlobalState a
 envIdLookup name funcNothing funcJust = do
-  (currScope, currFunc, envMap) <- get
+  (currScope, currFunc, envMap, _) <- get
   let
     go scope =
       case M.lookup (scope, name) envMap of
@@ -26,7 +26,7 @@ envIdLookup name funcNothing funcJust = do
           if currFunc == func || func == ""
             then funcJust env scope
             else if scope /= 0
-              then go $ scope - 1 
+              then go $ scope - 1
               else funcNothing
   go currScope
 
@@ -61,17 +61,15 @@ addIdToEnv :: ScopedName
            -> Env
            -> GlobalEnv
            -> GlobalEnv
-addIdToEnv scopedName env (currScope, currFunc, envMap) =
+addIdToEnv scopedName env (currScope, currFunc, envMap, p) =
   ( currScope
   , currFunc
-  , M.insert
-      scopedName
-      env
-      envMap
+  , M.insert scopedName env envMap
+  , p
   )
 
 changeScope :: Int -> GlobalEnv -> GlobalEnv
-changeScope n (scope, func, env) = (scope + n, func, env)
+changeScope n (scope, func, env, p) = (scope + n, func, env, p)
 
 nextScope :: GlobalEnv -> GlobalEnv
 nextScope = changeScope 1
@@ -87,4 +85,4 @@ withScope :: GlobalState a -> GlobalState a
 withScope = withScopeN 1
 
 setFuncScope :: CurrFuncName -> GlobalEnv -> GlobalEnv
-setFuncScope currFunc (scope, _, env) = (scope, currFunc, env)
+setFuncScope currFunc (scope, _, env, p) = (scope, currFunc, env, p)
