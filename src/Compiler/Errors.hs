@@ -1,7 +1,7 @@
 module Compiler.Errors where
 
 import           Compiler.Syntax.Error
-import           Compiler.Syntax.Statement (Name)
+import           Compiler.Syntax.Statement
 import           Compiler.Types
 
 import           Data.List                 as L
@@ -79,8 +79,11 @@ wrongNumArgsErr :: Program -> Name -> [FParamT] -> Either ErrT a
 wrongNumArgsErr p fName fParams =
   Left $ BadExpression $
     findErrLine p fName <>
-    "Wrong number of arguments in function: " <> fName <>
+    "Wrong number of arguments in function call: " <> fName <>
     ". Must be: " <> show (length fParams) <> " args"
+  where
+    paramNames :: [String]
+    paramNames = (\(FParam _ name) -> name) <$> fParams
 
 differentParamsErr :: Program -> Name -> Either ErrT a
 differentParamsErr p fName = Left $

@@ -17,7 +17,7 @@ expr1 <$*> expr2 = (<>) <$> expr1 <*> expr2
 infixr 6 <$*>
 
 emitBlock :: [Either ErrT String] -> Either ErrT String
-emitBlock = foldr1 (<$*>)
+emitBlock = foldr (<$*>) $ Right ""
 
 checkBreakAndContinue :: Program -> Either ErrT String -> Either ErrT String
 checkBreakAndContinue p =

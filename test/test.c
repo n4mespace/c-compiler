@@ -1,5 +1,11 @@
+int one();
 
 int main() {
-    int nah = 2;
-    return nah;
+    int a = one();
+    a %= 4;
+    return a;
+}
+
+int one() {
+    return 1;
 }
