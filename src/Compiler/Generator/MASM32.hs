@@ -54,7 +54,7 @@ instance Emittable StmtT where
       ]
     where
       endLbl :: String
-      endLbl = (<> "_endif") $ getRandomLbl newStdGen
+      endLbl = (<> "_endif") $! getRandomLbl newStdGen
 
   emit (IfElse cond stmt1 stmt2) =
     emitBlock
@@ -69,13 +69,13 @@ instance Emittable StmtT where
       ]
     where
       ifLbl :: String
-      ifLbl = (<> "_if") $ getRandomLbl newStdGen
+      ifLbl = (<> "_if") $! getRandomLbl newStdGen
 
       elseLbl :: String
-      elseLbl = (<> "_else") $ getRandomLbl newStdGen
+      elseLbl = (<> "_else") $! getRandomLbl newStdGen
 
       endLbl :: String
-      endLbl = (<> "_endif") $ getRandomLbl newStdGen
+      endLbl = (<> "_endif") $! getRandomLbl newStdGen
 
   emit (Expr expr) = emit expr
   emit Continue = emitNLn "__continue"
@@ -111,11 +111,11 @@ instance Emittable ExprT where
   emit (CallFunc fName fArgs) =
     if null fArgs
       then emitBlock
-        [ nLine, emit fArgs
+        [ nLine, emit $ reverse fArgs
         , emitNLn $ "call __func_" <> fName
         ]
       else emitBlock
-        [ nLine, emit fArgs
+        [ nLine, emit $ reverse fArgs
         , emitNLn $ "call __func_" <> fName
         , emitNLn $ "add esp, " <> show (length fArgs * 4)
         ]
@@ -160,13 +160,13 @@ instance Emittable LoopT where
       ]
     where
       loopCond :: String
-      loopCond = (<> "_while_cond") $ getRandomLbl newStdGen
+      loopCond = (<> "_while_cond") $! getRandomLbl newStdGen
 
       loopStart :: String
-      loopStart = (<> "_while_start") $ getRandomLbl newStdGen
+      loopStart = (<> "_while_start") $! getRandomLbl newStdGen
 
       loopEnd :: String
-      loopEnd = (<> "_while_end") $ getRandomLbl newStdGen
+      loopEnd = (<> "_while_end") $! getRandomLbl newStdGen
 
   emit (For (ForHeader init cond post) body) =
     emitLoopBlock loopCond loopEnd
@@ -183,13 +183,13 @@ instance Emittable LoopT where
       ]
     where
       loopCond :: String
-      loopCond = (<> "_for_cond") $ getRandomLbl newStdGen
+      loopCond = (<> "_for_cond") $! getRandomLbl newStdGen
 
       loopStart :: String
-      loopStart = (<> "_for_start") $ getRandomLbl newStdGen
+      loopStart = (<> "_for_start") $! getRandomLbl newStdGen
 
       loopEnd :: String
-      loopEnd = (<> "_for_end") $ getRandomLbl newStdGen
+      loopEnd = (<> "_for_end") $! getRandomLbl newStdGen
 
 
 instance Emittable a => Emittable [a] where

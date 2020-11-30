@@ -81,9 +81,6 @@ wrongNumArgsErr p fName fParams =
     findErrLine p fName <>
     "Wrong number of arguments in function call: " <> fName <>
     ". Must be: " <> show (length fParams) <> " args"
-  where
-    paramNames :: [String]
-    paramNames = (\(FParam _ name) -> name) <$> fParams
 
 differentParamsErr :: Program -> Name -> Either ErrT a
 differentParamsErr p fName = Left $
@@ -115,13 +112,13 @@ postClauseErr :: Either ErrT a
 postClauseErr = Left $ BadExpression "Invalid post clause"
 
 findErrLine :: Program -> String -> String
-findErrLine program errId = go reversedLines numLines
-  where
-    reversedLines :: [String]
-    reversedLines = reverse $ lines program
+findErrLine program = ((reverse . lines $ program) `findErrInProgramLines`)
 
+findErrInProgramLines :: [String] -> String -> String
+findErrInProgramLines programLines errId = go programLines numLines
+  where
     numLines :: Int
-    numLines = length reversedLines
+    numLines = length programLines
 
     spaceLen :: String -> Int
     spaceLen = length . takeWhile (== ' ')
